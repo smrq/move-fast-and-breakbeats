@@ -32,6 +32,12 @@ AppClock.sched(0.5, {
 )
 
 (
+Synth.new(\patch2, [\in, ~instBus[0], \out, ~fxBus[0]], ~sendGroup);
+Synth.new(\patch2, [\in, ~fxBus[0], \out, ~masterBus], ~mixGroup);
+Synth.tail(~masterGroup, \patch2, [\in, ~masterBus, \out, 0]);
+)
+
+(
 ~createMidiInstrument = {|name, fn, chan, src|
 	var notes = Dictionary.new;
 	MIDIdef.noteOn((name ++ "_on").asSymbol, {|vel, note|
@@ -122,12 +128,6 @@ MIDIdef.noteOn(\ch10, {|velocity, note|
 )
 
 (
-Synth.new(\patch2, [\in, ~instBus[0], \out, ~fxBus[0]], ~sendGroup);
-Synth.new(\patch2, [\in, ~fxBus[0], \out, ~masterBus], ~mixGroup);
-Synth.tail(~masterGroup, \patch2, [\in, ~masterBus, \out, 0]);
-)
-
-(
 ~reverb = Synth.new(\vstinsert, [\bus, ~fxBus[0]], ~fxGroup);
 ~reverbCtrl = VSTPluginController(~reverb);
 ~reverbCtrl.open('TAL Reverb 4 Plugin.vst3', editor: true);
@@ -137,8 +137,10 @@ Synth.tail(~masterGroup, \patch2, [\in, ~masterBus, \out, 0]);
 ~limiterCtrl.open('Pro-L 2.vst3', editor: true);
 )
 
+(
 ~reverbCtrl.editor;
 ~limiterCtrl.editor;
+)
 
 (
 var fmtSrc = {|src| switch(src,
