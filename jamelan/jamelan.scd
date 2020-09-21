@@ -1,4 +1,4 @@
-Require("server-setup", always: true);
+Require("../server-setup", always: true);
 
 (
 Instr(\sin, {|freq=440, gate=0, env|
@@ -33,19 +33,18 @@ Instr(\sample, {|freq=440, gate=0, buf|
 SynthDef(\vst, {|outbus, bypass|
 	ReplaceOut.ar(outbus, VSTPlugin.ar(In.ar(outbus, 2), 2));
 }).add;
-)
 
-(
-~kit808 = SoundFile.collectIntoBuffers(thisProcess.nowExecutingPath.dirname +/+ "media/tr808/*");
+~kit808 = SoundFile.collectIntoBuffers(thisProcess.nowExecutingPath.dirname +/+ "../media/tr808/*");
 
 ~master = MixerChannel.new(\master, s, 2, 2, level: 1);
 ~sends = 1.collect({|n| MixerChannel.new(("send"++n).asSymbol, s, 2, 2, outbus: ~master)});
 ~tracks = 7.collect({|n| MixerChannel.new(("track" ++ n).asSymbol, s, 2, 2, outbus: ~master)});
 
-~inst0 = Voicer(8, Instr.at(\sqr), [\env, Env.adsr(0, 0.5, 0.4, 1)], target: ~tracks[0]);
-~inst1 = Voicer(8, Instr.at(\sin), [\env, Env.adsr(0, 2, 0.1, 1)], target: ~tracks[1]);
-~inst2 = Voicer(8, Instr.at(\saw), [\env, Env.adsr(0, 2, 0.1, 1)], target: ~tracks[2]);
-~inst3 = Voicer(8, Instr.at(\tri), [\env, Env.adsr(0, 2, 0.1, 1)], target: ~tracks[3]);
+[0.57894736842105, -0.52631578947368, -0.21052631578947, 0.15789473684211, 0, 0.21052631578947, -0.15789473684211].do({|pan, n| ~tracks[n].pan_(pan) });
+
+~instGam = [\sin, \tri, \sqr, \saw].collect({|name, n|
+	Voicer(8, Instr.at(name), [\env, Env.perc(0.01, 1)], target: ~tracks[n])
+});
 ~instKick = Voicer(1, Instr.at(\sample), [\buf, ~kit808[11]], target: ~tracks[4]);
 ~instSnare = Voicer(1, Instr.at(\sample), [\buf, ~kit808[13]], target: ~tracks[5]);
 ~instHat = Voicer(1, Instr.at(\sample), [\buf, ~kit808[7]], target: ~tracks[6]);
@@ -68,38 +67,37 @@ SynthDef(\vst, {|outbus, bypass|
 
 ~limiterCtrl = VSTPluginController(~fxLimiter);
 ~limiterCtrl.open('Pro-L 2.vst3', editor: true, action: {|ctrl|
-	ctrl.setn(0, [0.0, 0.050000000745058, 0.44911110401154, 0.49661111831665, 0.036597222089767, 0.20691666007042, 0.0, 0.0, 0.0, 0.66666668653488, 0.0, 0.0, 0.0, 1.0, 0.0]);
+	ctrl.setn(0, [0.23419444262981, 0.050000000745058, 0.44911110401154, 0.49661111831665, 0.036597222089767, 0.20691666007042, 0.0, 0.0, 0.0, 0.66666668653488, 0.0, 0.0, 0.0, 1.0, 0.0]);
 });
 )
 
 (
-~tuningPelog = {|note|
-	var tuning = [585, 626, 700, 782, 856, 918, 1034];
-	var octave = div(note, 12) - 1;
-	var tone = note % 12;
-	var hz = tuning[[0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][tone]];
-	hz * (2 ** (octave - 5));
-};
-~midi0 = VoicerMIDISocket([0, 0], ~inst0, nil, nil, nil, ~tuningPelog);
-~midi1 = VoicerMIDISocket([0, 1], ~inst1, nil, nil, nil, ~tuningPelog);
-~midi2 = VoicerMIDISocket([0, 2], ~inst2, nil, nil, nil, ~tuningPelog);
-~midi3 = VoicerMIDISocket([0, 3], ~inst3, nil, nil, nil, ~tuningPelog);
-~midiKick = VoicerMIDISocket([0, 9], ~instKick, 24, 24);
-~midiSnare = VoicerMIDISocket([0, 9], ~instSnare, 26, 26);
-~midiHat = VoicerMIDISocket([0, 9], ~instHat, 28, 28);
+~pelog = TuningRatios(12, 459, 69, [
+	585, (585*626).sqrt,
+	626, (626*700).sqrt,
+	700,
+	782, (782*856).sqrt,
+	856, (856*918).sqrt,
+	918, (918*1034).sqrt,
+	1034
+] / 585);
+~tuning = CompositeTuning([EqualTemperament.new, ~pelog]);
 )
 
 (
-[~midi0, ~midi1, ~midi2, ~midi3].do({|v|
-	v.midiToFreq_(nil);
-})
-)
-(
-[~midi0, ~midi1, ~midi2, ~midi3].do({|v|
-	v.midiToFreq_(~tuningPelog);
-})
+~midiGam = 4.collect({|n| VoicerMIDISocket([0, n], ~instGam[n], nil, nil, nil, ~tuning)});
+~midiKick = VoicerMIDISocket([0, 9], ~instKick, 24, 24);
+~midiSnare = VoicerMIDISocket([0, 9], ~instSnare, 26, 26);
+~midiHat = VoicerMIDISocket([0, 9], ~instHat, 28, 28);
+MIDIdef.cc(\cc64, {|val, num, chan, src|
+	var t = if(val>0, {0.01}, {0});
+	~midiGam.do({|v| v.transpose_(t) });
+}, 64, 0, ~midiSrc[\iac]);
 )
 
 ~board = MixingBoard(mixers: ~tracks ++ ~sends ++ [~master]);
 ~reverbCtrl.editor;
 ~limiterCtrl.editor;
+
+s.record(thisProcess.nowExecutingPath.dirname +/+ "recording.wav", 0, 2);
+s.stopRecording;
