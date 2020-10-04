@@ -3,7 +3,7 @@ import { EffectComposer } from 'https://unpkg.com/three@0.121.1/examples/jsm/pos
 import { RenderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/UnrealBloomPass.js'; 
-import { FilmPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/FilmPass.js'; 
+import { FilmPass } from './FilmPass.js'; 
 import { VerticalTiltShiftShader } from './VerticalTiltShiftShader.js';
 import { linlin, rebinFft, getBandPower } from './util.js';
 import * as hilbert from './hilbert.js';
@@ -15,6 +15,7 @@ const particleMinFreq = 20;
 const particleMaxFreq = 20000;
 
 let camera, scene, light, oscContainer, particles, renderer, pipeline;
+let lastFrame = 0;
 
 export function initScene(canvasCtx) {
 	camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 0.01, 10000);
@@ -102,8 +103,9 @@ export function drawFrame(frequencyData, timeData, frame) {
 	oscContainer.add(oscMesh);
 	updateSpectrumPoints(frequencyData, frame);
 	updateShaders(frequencyData);
-	pipeline.composer.render(1/FPS);
+	pipeline.composer.render((frame - lastFrame)/FPS);
 	oscContainer.remove(oscMesh);
+	lastFrame = frame;
 }
 
 function createOscMesh(timeData) {
