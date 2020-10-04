@@ -1,6 +1,4 @@
 import * as THREE from 'https://unpkg.com/three@0.121.1/build/three.module.js';
-import { GUI } from 'https://unpkg.com/three@0.121.1/examples/jsm/libs/dat.gui.module.js';
-// import { OrbitControls } from 'https://unpkg.com/three@0.121.1/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/ShaderPass.js';
@@ -20,8 +18,6 @@ const maxLength = sampleRate * 60 * 10;
 const fps = 60;
 
 const filepath = 'tetrik.flac';
-// const filepath = 'my own hostage.mp3';
-// const filepath = 'jamelan.flac';
 const audioArrayBuffer = fetch(filepath).then(res => res.arrayBuffer());
 
 const width = 1920;
@@ -36,19 +32,12 @@ const particleMaxFreq = 20000;
 const postprocessing = {};
 let parent, particles;
 
-const guiParams = {
-	tiltFocus: 0.35,
-	tiltAmount: 0.002,
-	tiltBrightness: 0.8,
-	noiseIntensity: 0.35,
-	scanlinesIntensity: 0.025,
-	scanlinesCount: 648,
-};
+const canvas = document.getElementById('canvas');
+const canvasCtx = canvas.getContext('webgl');
 
 function init() {
 	const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 10000);
 	window.camera = camera;
-	// camera.position.set(0, 400, 500);
 	camera.position.set(0, 400, 600);
 	camera.lookAt(0, -150, 0);
 
@@ -94,48 +83,28 @@ void main() {
 	particles = new THREE.Points(particleGeometry, particleMaterial);
 	scene.add(particles);
 
-	const renderer = new THREE.WebGLRenderer({ antialias: true });
+	const renderer = new THREE.WebGLRenderer({
+		canvas: canvas,
+		context: canvasCtx,
+		antialias: true,
+	});
 	renderer.setPixelRatio(1);
 	renderer.setSize(width, height);
-	document.body.appendChild(renderer.domElement);
 
 	postprocessing.renderPass = new RenderPass(scene, camera);
 	postprocessing.tiltShiftPass = new ShaderPass(VerticalTiltShiftShader);
+	postprocessing.tiltShiftPass.uniforms.focusPos.value = 0.35;
+	postprocessing.tiltShiftPass.uniforms.amount.value = 0.002;
+	postprocessing.tiltShiftPass.uniforms.brightness.value = 0.8;
 	postprocessing.bloomPass = new UnrealBloomPass(resolution, 1.5, 0.4, 0.85);
-	postprocessing.filmPass = new FilmPass(
-		0.35,   // noise intensity
-		0.025,  // scanline intensity
-		648,    // scanline count
-		false,  // grayscale
-	);
+	postprocessing.filmPass = new FilmPass(0.35, 0.025, 648, false);
 	postprocessing.filmPass.renderToScreen = true;
+
 	postprocessing.composer = new EffectComposer(renderer);
 	postprocessing.composer.addPass(postprocessing.renderPass);
 	postprocessing.composer.addPass(postprocessing.tiltShiftPass);
 	postprocessing.composer.addPass(postprocessing.bloomPass);
 	postprocessing.composer.addPass(postprocessing.filmPass);
-
-	const gui = new GUI({ width: 300 });
-	gui.add(guiParams, "tiltFocus", 0, 1).onChange(handleParam);
-	gui.add(guiParams, "tiltAmount", 0, 0.02).onChange(handleParam);
-	gui.add(guiParams, "tiltBrightness", 0, 2).onChange(handleParam);
-	gui.add(guiParams, "noiseIntensity", 0, 1).onChange(handleParam);
-	gui.add(guiParams, "scanlinesIntensity", 0, 0.5).onChange(handleParam);
-	gui.add(guiParams, "scanlinesCount", 100, 1000).onChange(handleParam);
-	handleParam();
-
-	// const controls = new OrbitControls(camera, renderer.domElement);
-}
-
-function handleParam() {
-	postprocessing.tiltShiftPass.uniforms.focusPos.value = guiParams.tiltFocus;
-	postprocessing.tiltShiftPass.uniforms.amount.value = guiParams.tiltAmount;
-	postprocessing.tiltShiftPass.uniforms.brightness.value = guiParams.tiltBrightness;
-
-	// postprocessing.filmPass.uniforms.grayscale.value = grayscale;
-	postprocessing.filmPass.uniforms.nIntensity.value = guiParams.noiseIntensity;
-	postprocessing.filmPass.uniforms.sIntensity.value = guiParams.scanlinesIntensity;
-	postprocessing.filmPass.uniforms.sCount.value = guiParams.scanlinesCount;
 }
 
 function drawFrame(frequencyData, timeData, frame) {
@@ -149,10 +118,7 @@ function drawFrame(frequencyData, timeData, frame) {
 	}
 	const oscCurve = new THREE.CatmullRomCurve3(oscPoints);
 	const oscGeometry = new THREE.TubeBufferGeometry(oscCurve, 1024, 2, 4, false);
-	const oscMaterial = new THREE.MeshStandardMaterial({
-		color: 0xffffff,
-		flatShading: true,
-	});
+	const oscMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true });
 	const oscMesh = new THREE.Mesh(oscGeometry, oscMaterial);
 	parent.add(oscMesh);
 
@@ -177,6 +143,7 @@ function drawFrame(frequencyData, timeData, frame) {
 	postprocessing.composer.render();
 
 	parent.remove(oscMesh);
+
 }
 
 function rebinFft(frequencyData, binCount, minFreq, maxFreq) {
@@ -218,7 +185,7 @@ function getBandPower(frequencyData, bandLow, bandHigh) {
 	return power;
 
 	function frequencyToBinIndex(frequency) {
-		const fractional = (frequency / hzPerBin) - 1;
+		const fractional = frequency / hzPerBin;
 		const index = fractional | 0;
 		const t = fractional % 1;
 		return [index, t];
@@ -231,16 +198,6 @@ function linlin(value, in1, in2, out1, out2, clamp = false) {
 	const t = (value - in1) / (in2 - in1);
 	return out1 + (out2 - out1) * t;
 }
-
-// function loopOnline(onFrame) {
-// 	let frame = 0;
-// 	requestAnimationFrame(handleRaf);
-// 	function handleRaf() {
-// 		if (onFrame(frame++)) {
-// 			requestAnimationFrame(handleRaf);
-// 		}
-// 	}
-// }
 
 async function setupAudioPipeline(audioCtx, interactive) {
 	const [buffer] = await Promise.all([
@@ -259,59 +216,14 @@ async function setupAudioPipeline(audioCtx, interactive) {
 	const timeData = new Float32Array(fftSize).fill(0);
 
 	source.connect(analyzer);
-	analyzer.connect(audioCtx.destination);
+	if (interactive) {
+		analyzer.connect(audioCtx.destination);
+	}
 
 	return { buffer, source, analyzer, frequencyData, timeData };
 }
 
-// async function renderOffline(inFrames = 0, outFrames = 0) {
-// 	const audioCtx = new OfflineAudioContext({
-// 		length: maxLength,
-// 		sampleRate: sampleRate,
-// 		numberOfChannels: channels,
-// 	});
-
-// 	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
-
-// 	let frame = 0;
-
-// 	for (let i = 0; i < inFrames; ++i) {
-// 		drawFrame(frequencyData, timeData, frame++);
-// 	}
-
-// 	while (true) {
-// 		drawFrame(frequencyData, timeData, frame++);
-// 		const t = (frame - inFrames) / fps;
-// 		if (t < buffer.duration) {
-// 			const promise = audioCtx.suspend(t);
-// 			audioCtx.resume();
-// 			await promise;
-// 		} else {
-// 			frequencyData.fill(minDb);
-// 			timeData.fill(0);
-// 			break;
-// 		}
-// 	});
-
-// 	for (let i = 0; i < outFrames; ++i) {
-// 		drawFrame(frequencyData, timeData, frame++);
-// 	}
-// }
-
-// async function renderSingleFrame(frame) {
-// 	const audioCtx = new OfflineAudioContext({
-// 		length: maxLength,
-// 		sampleRate: sampleRate,
-// 		numberOfChannels: channels,
-// 	});
-
-// 	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
-
-// 	audioCtx.suspend(frame / fps);
-// 	source.start();
-// }
-
-async function renderOffline(startFrame = 1, endFrame = null) {
+async function renderOffline(inFrames = 0, outFrames = 0) {
 	const audioCtx = new OfflineAudioContext({
 		length: maxLength,
 		sampleRate: sampleRate,
@@ -321,47 +233,120 @@ async function renderOffline(startFrame = 1, endFrame = null) {
 	const { buffer, source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
 	source.start();
 
-	let frame = startFrame;
-	audioCtx.suspend(frame / fps).then(handleSuspend);
-	return audioCtx.startRendering().then(() => {
-		console.log('rendering finished');
+	const pixels = new Uint8Array(width * height * 4);
+
+	const requestedBytes = 1024*1024*1024*100;
+	const grantedBytes = await new Promise((resolve, reject) => {
+		navigator.webkitPersistentStorage.requestQuota(requestedBytes, grantedBytes => resolve(grantedBytes), error => reject(error));
+	});
+	const fs = await new Promise((resolve, reject) => {
+		window.webkitRequestFileSystem(PERSISTENT, grantedBytes, fs => resolve(fs), error => reject(error));
 	});
 
-	async function handleSuspend() {
+	let frame = 0;
+	let t0;
+
+	for (let i = 0; i < inFrames; ++i) {
+		console.log(`drawing frame ${frame} (inframe)`);
+		t0 = Date.now();
+		drawFrame(frequencyData, timeData, frame);
+		console.log(`rendered in ${Date.now() - t0}ms`);
+		await saveFrame(frame);
+		++frame;
+	}
+
+	const suspension0 = audioCtx.suspend(0);
+	audioCtx.startRendering();
+	await suspension0;
+
+	while (true) {
 		analyzer.getFloatFrequencyData(frequencyData);
 		analyzer.getFloatTimeDomainData(timeData);
-
-		console.log('drawing frame ' + frame);
+		console.log(`drawing frame ${frame}`);
 		drawFrame(frequencyData, timeData, frame);
-
+		await saveFrame(frame);
 		++frame;
-		const t = frame / fps;
-		if (endFrame == null ? t < buffer.duration : frame < endFrame) {
-			audioCtx.suspend(t).then(handleSuspend);
+
+		const t = (frame - inFrames) / fps;
+		if (t < buffer.duration) {
+			const suspension = audioCtx.suspend(t);
+			audioCtx.resume();
+			await suspension;
+		} else {
+			frequencyData.fill(minDb);
+			timeData.fill(0);
+			break;
 		}
-		audioCtx.resume();
+	}
+
+	for (let i = 0; i < outFrames; ++i) {
+		console.log(`drawing frame ${frame} (outframe)`);
+		drawFrame(frequencyData, timeData, frame);
+		await saveFrame(frame);
+		++frame;
+	}
+
+	async function saveFrame(frame) {
+		t0 = Date.now();
+		const filename = `frame_${String(frame).padStart(6, '0')}.png`;
+		return new Promise(resolve => {
+			canvas.toBlob(blob => {
+				console.log(`blobbed ${blob.size} bytes in ${Date.now() - t0}ms`);
+				fs.root.getFile(filename, { create: true }, entry => {
+					entry.createWriter(writer => {
+	      				writer.seek(0);
+	      				writer.write(blob);
+	      				console.log(`saved frame ${frame} in ${Date.now() - t0}ms`);
+	      				resolve();
+					});
+				});
+			}, 'image/png');
+		});
 	}
 }
 
-async function renderOnline() {
+async function renderSingleFrame(frame, inFrames = 0) {
+	const audioCtx = new OfflineAudioContext({
+		length: maxLength,
+		sampleRate: sampleRate,
+		numberOfChannels: channels,
+	});
+
+	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
+	source.start();
+
+	if (frame >= inFrames) {
+		const suspension = audioCtx.suspend((frame - inFrames) / fps);
+		audioCtx.startRendering();
+		await suspension;
+		analyzer.getFloatFrequencyData(frequencyData);
+		analyzer.getFloatTimeDomainData(timeData);
+	}
+
+	drawFrame(frequencyData, timeData, frame);
+}
+
+async function renderOnline(inFrames = 0) {
 	const audioCtx = new AudioContext();
 	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, true);
 
-	source.start();
 	let frame = 0;
 	requestAnimationFrame(handleRaf);
 
 	function handleRaf() {
+		if (frame == inFrames) {
+			source.start();
+		}
+
 		analyzer.getFloatFrequencyData(frequencyData);
 		analyzer.getFloatTimeDomainData(timeData);
-
 		drawFrame(frequencyData, timeData, frame++);
 		requestAnimationFrame(handleRaf);
 	}
 }
 
-window.online = renderOnline;
-window.offline = () => { renderOffline(1); };
+window.online = () => { renderOnline(90); };
+window.offline = () => { renderOffline(90, 0); };
 
 init();
-renderOffline(80, 80);
+renderSingleFrame(1000, 90);
