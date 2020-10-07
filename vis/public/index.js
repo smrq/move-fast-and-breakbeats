@@ -1,5 +1,6 @@
 import { linlin } from './util.js';
 import { initScene, drawFrame } from './vis.js';
+import { Analyzer } from './analyzer.js';
 import { TarWriter } from './tarball.js';
 
 const canvas = document.getElementById('canvas');
@@ -10,115 +11,66 @@ window.HEIGHT = canvas.height;
 window.SAMPLE_RATE = 44100;
 window.FPS = 60;
 
-const inFrames = 90;
+const inFrames = 45;
+const framesPerArchive = 100;
 
-const channels = 2;
-const fftBuckets = 2**12;
-const fftSize = fftBuckets * 2;
+const fftSize = 2**12 * 2;
 const smoothing = 0.2;
-const minDb = -100;
-const maxDb = 0;
-const maxLength = SAMPLE_RATE * 60 * 10;
+const audioDelaySamples = fftSize * 7/8;
 
 const filepath = 'media/tetrik.flac';
 const audioArrayBuffer = fetch(filepath).then(res => res.arrayBuffer());
+const monoData = audioArrayBuffer
+	.then(buf => {
+		const audioCtx = new OfflineAudioContext({ length: 1, sampleRate: SAMPLE_RATE, numberOfChannels: 2 });
+		return audioCtx.decodeAudioData(buf.slice());
+	})
+	.then(data => {
+		const monoData = new Float32Array(data.length);
+		const channelData = [0, 1].map(c => data.getChannelData(c));
+		for (let i = 0; i < monoData.length; ++i) {
+			monoData[i] = 0.5 * (channelData[0][i] + channelData[1][i]);
+		}
+		return monoData;
+	});
+monoData.then(mono => {
+	window.mono = mono;
+	window.analyzer = new Analyzer(mono, fftSize, smoothing);
+});
 
 initScene(canvasCtx);
-// renderSingleFrame(20616, 90);
-
-async function setupAudioPipeline(audioCtx, interactive) {
-	const [buffer] = await Promise.all([
-		audioArrayBuffer.then(b => b.slice()).then(audioCtx.decodeAudioData.bind(audioCtx)),
-		interactive ? StartAudioContext(audioCtx) : Promise.resolve()
-	]);
-	const source = audioCtx.createBufferSource();
-	source.buffer = buffer;
-
-	const analyzer = new AnalyserNode(audioCtx);
-	analyzer.fftSize = fftSize;
-	analyzer.smoothingTimeConstant = smoothing;
-	analyzer.minDecibels = minDb;
-	analyzer.maxDecibels = maxDb;
-	const frequencyData = new Float32Array(analyzer.frequencyBinCount).fill(minDb);
-	const timeData = new Float32Array(fftSize).fill(0);
-
-	source.connect(analyzer);
-	if (interactive) {
-		analyzer.connect(audioCtx.destination);
-	}
-
-	return { buffer, source, analyzer, frequencyData, timeData };
-}
+renderSingleFrame(10000);
 
 async function renderSingleFrame(frame) {
-	const audioCtx = new OfflineAudioContext({
-		length: maxLength,
-		sampleRate: SAMPLE_RATE,
-		numberOfChannels: channels,
-	});
+	const signal = await monoData;
+	const analyzer = new Analyzer(signal, fftSize, smoothing);
 
-	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
-	source.start();
-
-	if (frame >= inFrames) {
-		const suspension = audioCtx.suspend((frame - inFrames) / FPS);
-		audioCtx.startRendering();
-		await suspension;
-		analyzer.getFloatFrequencyData(frequencyData);
-		analyzer.getFloatTimeDomainData(timeData);
-	}
-
+	const lastSample = Math.floor((frame - inFrames) * SAMPLE_RATE / FPS);
+	const [timeData, frequencyData] = analyzer.analyze(lastSample + audioDelaySamples);
 	drawFrame(frequencyData, timeData, frame);
 }
 
-async function renderOffline(startFrame = 0) {
-	const audioCtx = new OfflineAudioContext({
-		length: maxLength,
-		sampleRate: SAMPLE_RATE,
-		numberOfChannels: channels,
-	});
+async function renderOffline(startFrame = 0, endFrame = null) {
+	const signal = await monoData;
+	const analyzer = new Analyzer(signal, fftSize, smoothing);
 
-	const { buffer, source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, false);
-	const audioFrames = Math.floor(buffer.duration * FPS);
-	const totalFrames = inFrames + audioFrames;
-	source.start();
+	if (!endFrame) {
+		endFrame = inFrames + Math.floor(signal.length * FPS / SAMPLE_RATE);
+	}
 
-	const archiveSize = 100;
+	console.log(`Rendering frames ${startFrame} - ${endFrame-1}`);
+
 	let archive = new TarWriter();
 	let frame = startFrame;
-	let t0;
-
-	while (frame < inFrames) {
-		t0 = Date.now();
-
+	for (; frame < endFrame; ++frame) {
+		const t0 = Date.now();
+		const lastSample = Math.floor((frame - inFrames) * SAMPLE_RATE / FPS);
+		const [timeData, frequencyData] = analyzer.analyze(lastSample + audioDelaySamples);
 		drawFrame(frequencyData, timeData, frame);
 		await saveFrame(frame);
-		++frame;
-
-		console.log(`inframe ${frame} / ${totalFrames} done in ${Date.now() - t0}ms`);
+		console.log(`frame ${frame} / ${endFrame-1} done in ${Date.now() - t0}ms`);
 	}
-
-	const suspension0 = audioCtx.suspend(0);
-	audioCtx.startRendering();
-	await suspension0;
-
-	while (frame < inFrames + audioFrames) {
-		t0 = Date.now();
-
-		const suspension = audioCtx.suspend((frame - inFrames) / FPS);
-		audioCtx.resume();
-		await suspension;
-		analyzer.getFloatFrequencyData(frequencyData);
-		analyzer.getFloatTimeDomainData(timeData);
-
-		drawFrame(frequencyData, timeData, frame);
-		await saveFrame(frame);
-		++frame;
-
-		console.log(`audio frame ${frame} / ${totalFrames} done in ${Date.now() - t0}ms`);
-	}
-
-	saveArchive();
+	saveArchive(frame);
 
 	async function saveFrame(frame) {
 		const filename = `frame_${String(frame).padStart(6, '0')}.png`;
@@ -127,16 +79,15 @@ async function renderOffline(startFrame = 0) {
 		});
 		archive.addFile(filename, blob);
 
-		if ((frame + 1) % archiveSize === 0) {
-			await saveArchive();
+		if ((frame + 1) % framesPerArchive === 0) {
+			await saveArchive(frame);
 			archive = new TarWriter();
 		}
 	}
 
-	async function saveArchive() {
+	async function saveArchive(frame) {
 		const t0 = Date.now();
-		const archiveIndex = frame / archiveSize | 0;
-		const filename = `frames_${String(archiveIndex).padStart(4, '0')}.tar`;
+		const filename = `frames_${String(frame).padStart(6, '0')}.tar`;
 		await archive.download(filename);
 		console.log(`saved ${filename} in ${Date.now() - t0}ms`);
 	}
@@ -144,7 +95,28 @@ async function renderOffline(startFrame = 0) {
 
 async function renderOnline() {
 	const audioCtx = new AudioContext();
-	const { source, analyzer, frequencyData, timeData } = await setupAudioPipeline(audioCtx, true);
+	const [buffer] = await Promise.all([
+		audioArrayBuffer.then(b => b.slice()).then(audioCtx.decodeAudioData.bind(audioCtx)),
+		StartAudioContext(audioCtx)
+	]);
+	const source = audioCtx.createBufferSource();
+	source.buffer = buffer;
+
+	const analyzer = new AnalyserNode(audioCtx, {
+		fftSize: fftSize,
+		smoothingTimeConstant: smoothing,
+	});
+
+	const delay = new DelayNode(audioCtx, {
+		delayTime: audioDelaySamples / SAMPLE_RATE,
+	});
+
+	const frequencyData = new Float32Array(analyzer.frequencyBinCount);
+	const timeData = new Float32Array(fftSize);
+
+	source.connect(analyzer);
+	analyzer.connect(delay);
+	delay.connect(audioCtx.destination);
 
 	let frame = 0;
 	requestAnimationFrame(handleRaf);
@@ -154,8 +126,11 @@ async function renderOnline() {
 			source.start();
 		}
 
-		analyzer.getFloatFrequencyData(frequencyData);
 		analyzer.getFloatTimeDomainData(timeData);
+		analyzer.getFloatFrequencyData(frequencyData);
+		for (let i = 0; i < frequencyData.length; ++i) {
+			frequencyData[i] = 10**(frequencyData[i] / 20);
+		}
 		drawFrame(frequencyData, timeData, frame++);
 		requestAnimationFrame(handleRaf);
 	}
@@ -163,7 +138,11 @@ async function renderOnline() {
 
 window.offline = () => {
 	const startFrame = parseInt(document.getElementById('startframe').value, 10);
-	renderOffline(startFrame);
+
+	let endFrame = document.getElementById('startframe').value;
+	if (endFrame) endFrame = parseInt(endFrame, 10);
+
+	renderOffline(startFrame, endFrame);
 };
 
 window.online = renderOnline;

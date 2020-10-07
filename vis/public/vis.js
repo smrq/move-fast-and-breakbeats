@@ -5,7 +5,7 @@ import { ShaderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postpro
 import { UnrealBloomPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/UnrealBloomPass.js'; 
 import { FilmPass } from './FilmPass.js'; 
 import { VerticalTiltShiftShader } from './VerticalTiltShiftShader.js';
-import { linlin, rebinFft, getBandPower } from './util.js';
+import { linlin, rebinFft, getBandPower, powerToDb } from './util.js';
 import * as hilbert from './hilbert.js';
 
 const particleCount = 2**12;
@@ -87,7 +87,7 @@ void main() {
 		1.5,
 		0.4,
 		0.85);
-	const filmPass = new FilmPass(0.35, 0.025, 648, false);
+	const filmPass = new FilmPass(0, 0, 648, false);
 
 	const composer = new EffectComposer(renderer);
 	composer.addPass(renderPass);
@@ -125,12 +125,12 @@ function createOscMesh(timeData) {
 }
 
 function updateSpectrumPoints(frequencyData, frame) {
-	const logFrequencyData = rebinFft(frequencyData, particleCount, 40, 16000, SAMPLE_RATE);
+	const rebinned = rebinFft(frequencyData, particleCount, 40, 16000, SAMPLE_RATE);
 	const positions = particles.geometry.attributes.position.array;
 	const scales = particles.geometry.attributes.scale.array;
 	for (let i = 0; i < particleCount; ++i) {
-		positions[i*3 + 1] = linlin(logFrequencyData[i], -100, -40, -100, 100, true);
-		scales[i] = linlin(logFrequencyData[i], -100, -40, 1, 20, true);
+		positions[i*3 + 1] = linlin(powerToDb(rebinned[i]), -100, -40, -100, 100, true);
+		scales[i] = linlin(powerToDb(rebinned[i]), -100, -40, 1, 20, true);
 	}
 	particles.geometry.attributes.position.needsUpdate = true;
 	particles.geometry.attributes.scale.needsUpdate = true;
@@ -140,6 +140,6 @@ function updateSpectrumPoints(frequencyData, frame) {
 function updateShaders(frequencyData) {
 	const powerLow = getBandPower(frequencyData, 20, 40, SAMPLE_RATE);
 	const powerHigh = getBandPower(frequencyData, 2000, 16000, SAMPLE_RATE);
-	pipeline.filmPass.uniforms.nIntensity.value = linlin(powerHigh, -100, -40, 0, 0.75, true);
-	pipeline.filmPass.uniforms.sIntensity.value = linlin(powerLow, -60, -30, 0, 0.25, true);
+	pipeline.filmPass.uniforms.sIntensity.value = linlin(powerToDb(powerLow), -60, -30, 0, 0.25, true);
+	pipeline.filmPass.uniforms.nIntensity.value = linlin(powerToDb(powerHigh), -100, -30, 0, 0.75, true);
 }

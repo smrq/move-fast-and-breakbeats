@@ -31,16 +31,14 @@ export function getBandPower(frequencyData, bandLow, bandHigh, sampleRate) {
 
 	let power = 0;
 	for (let i = indexLow; i <= indexHigh; ++i) {
-		const dataExp = 10**(frequencyData[i] / 20);
-		power += dataExp;
+		power += frequencyData[i];
 		if (i === indexLow) {
-			power -= dataExp * tLow;
+			power -= frequencyData[i] * tLow;
 		}
 		if (i === indexHigh) {
-			power -= dataExp * (1 - tHigh);
+			power -= frequencyData[i] * (1 - tHigh);
 		}
 	}
-	power = 20*Math.log10(power);
 	return power;
 
 	function frequencyToBinIndex(frequency) {
@@ -49,4 +47,8 @@ export function getBandPower(frequencyData, bandLow, bandHigh, sampleRate) {
 		const t = fractional % 1;
 		return [index, t];
 	}
+}
+
+export function powerToDb(power) {
+	return 20*Math.log10(power);
 }
