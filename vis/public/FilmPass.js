@@ -3,7 +3,7 @@ import {
 	UniformsUtils
 } from 'https://unpkg.com/three@0.121.1/build/three.module.js';
 import { Pass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/Pass.js';
-import { FilmShader } from 'https://unpkg.com/three@0.121.1/examples/jsm/shaders/FilmShader.js';
+import { FilmShader } from './FilmShader.js';
 
 var FilmPass = function ( noiseIntensity, scanlinesIntensity, scanlinesCount, grayscale ) {
 

@@ -3,6 +3,7 @@ import { EffectComposer } from 'https://unpkg.com/three@0.121.1/examples/jsm/pos
 import { RenderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'https://unpkg.com/three@0.121.1/examples/jsm/postprocessing/UnrealBloomPass.js'; 
+import { ParticleShader } from './ParticleShader.js';
 import { FilmPass } from './FilmPass.js'; 
 import { VerticalTiltShiftShader } from './VerticalTiltShiftShader.js';
 import { linlin, rebinFft, getBandPower, powerToDb } from './util.js';
@@ -12,7 +13,7 @@ const particleCount = 2**12;
 const particlePositions = new Float32Array(particleCount * 3);
 const particleScales = new Float32Array(particleCount);
 const particleMinFreq = 20;
-const particleMaxFreq = 20000;
+const particleMaxFreq = 18000;
 
 let camera, scene, light, oscContainer, particles, renderer, pipeline;
 let lastFrame = 0;
@@ -41,26 +42,9 @@ export function initScene(canvasCtx) {
 	const particleGeometry = new THREE.BufferGeometry();
 	particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 	particleGeometry.setAttribute('scale', new THREE.BufferAttribute(particleScales, 1));
-	const particleMaterial = new THREE.ShaderMaterial({
-		uniforms: {
-			color: { value: new THREE.Color(0xffffff) }
-		},
-		vertexShader: `
-attribute float scale;
-void main() {
-	vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-	gl_PointSize = scale * ( 300.0 / - mvPosition.z );
-	gl_Position = projectionMatrix * mvPosition;
-}
-		`,
-		fragmentShader: `
-uniform vec3 color;
-void main() {
-	if ( length( gl_PointCoord - vec2( 0.5, 0.5 ) ) > 0.475 ) discard;
-	gl_FragColor = vec4( color, 1.0 );
-}
-		`,
-	});
+	const particleMaterial = new THREE.ShaderMaterial(ParticleShader);
+	particleMaterial.uniforms.color.value = new THREE.Color(0xffffff);
+	particleMaterial.uniforms.resolution.value = new THREE.Vector2(WIDTH, HEIGHT);
 	particles = new THREE.Points(particleGeometry, particleMaterial);
 	scene.add(particles);
 
@@ -130,7 +114,7 @@ function updateSpectrumPoints(frequencyData, frame) {
 	const scales = particles.geometry.attributes.scale.array;
 	for (let i = 0; i < particleCount; ++i) {
 		positions[i*3 + 1] = linlin(powerToDb(rebinned[i]), -100, -40, -100, 100, true);
-		scales[i] = linlin(powerToDb(rebinned[i]), -100, -40, 1, 20, true);
+		scales[i] = linlin(powerToDb(rebinned[i]), -100, -40, 1, 4, true);
 	}
 	particles.geometry.attributes.position.needsUpdate = true;
 	particles.geometry.attributes.scale.needsUpdate = true;

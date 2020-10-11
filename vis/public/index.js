@@ -15,24 +15,28 @@ const inFrames = 45;
 const framesPerArchive = 100;
 
 const fftSize = 2**12 * 2;
-const smoothing = 0.2;
-const audioDelaySamples = fftSize * 7/8;
+const smoothing = 0.6;
+const audioDelaySamples = fftSize * 6/8;
 
 const filepath = 'media/tetrik.flac';
 const audioArrayBuffer = fetch(filepath).then(res => res.arrayBuffer());
-const monoData = audioArrayBuffer
+const stereoData = audioArrayBuffer
 	.then(buf => {
 		const audioCtx = new OfflineAudioContext({ length: 1, sampleRate: SAMPLE_RATE, numberOfChannels: 2 });
 		return audioCtx.decodeAudioData(buf.slice());
 	})
-	.then(data => {
-		const monoData = new Float32Array(data.length);
-		const channelData = [0, 1].map(c => data.getChannelData(c));
+	.then(data => [0, 1].map(c => data.getChannelData(c)));
+const monoData = stereoData.then(stereoData => {
+		const monoData = new Float32Array(stereoData[0].length);
 		for (let i = 0; i < monoData.length; ++i) {
-			monoData[i] = 0.5 * (channelData[0][i] + channelData[1][i]);
+			monoData[i] = 0.5 * (stereoData[0][i] + stereoData[1][i]);
 		}
 		return monoData;
 	});
+
+stereoData.then(stereo => {
+	window.stereo = stereo;
+});
 monoData.then(mono => {
 	window.mono = mono;
 	window.analyzer = new Analyzer(mono, fftSize, smoothing);
