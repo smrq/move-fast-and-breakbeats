@@ -33,48 +33,42 @@ static float lerpClamped(float value, float in1, float in2, float out1, float ou
 	return lerp((value < in1) ? in1 : (value > in2) ? in2 : value, in1, in2, out1, out2);
 }
 
-Vis::Vis() {
-	initWindow();
+Vis::Vis(std::shared_ptr<gl::Window> window, const char *endFrameFilename)
+: window(std::move(window)), endFrame(endFrameFilename) {
+	framebufferFront = std::make_unique<gl::Framebuffer>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
+	framebufferBack = std::make_unique<gl::Framebuffer>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
 
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-		fprintf(stderr, "Failed to initialize GLAD\n");
-		glfwTerminate();
-		exit(1);
-	}
+	axisShader = std::make_unique<gl::Shader>(
+#include "shaders/axisShader.glsl"
+	);
+	lineShader = std::make_unique<gl::Shader>(
+#include "shaders/lineShader.glsl"
+	);
+	gridShader = std::make_unique<gl::Shader>(
+#include "shaders/gridShader.glsl"
+	);
+	tiltShiftShader = std::make_unique<gl::Shader>(
+#include "shaders/tiltShiftShader.glsl"
+	);
+	filmShader = std::make_unique<gl::Shader>(
+#include "shaders/filmShader.glsl"
+	);
+	copyShader = std::make_unique<gl::Shader>(
+#include "shaders/copyShader.glsl"
+	);
 
-	initFramebuffers();
+	bloomPass = std::make_unique<BloomPass>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT);
+
+	projectionMatrix = glm::perspective(glm::radians(50.0f), (float)GEN_VIDEO_WIDTH / (float)GEN_VIDEO_HEIGHT, 0.1f, 10000.0f);
+	viewMatrix = glm::lookAt(
+		glm::vec3(0.0f, 400.0f, 600.0f),
+		glm::vec3(0.0f, -150.0f, 0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f));
+
 	initAxisVertices();
 	initOscVertices();
 	initGridVertices();
 	initScreenQuadVertices();
-	initMatrices();
-	initShaders();
-	bloomPass = new BloomPass(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT);
-}
-
-void Vis::initWindow() {
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenGL", NULL, NULL);
-	if (window == NULL) {
-		fprintf(stderr, "Failed to create GLFW window\n");
-		glfwTerminate();
-		exit(1);
-	}
-
-	glfwGetFramebufferSize(window, &windowFramebufferWidth, &windowFramebufferHeight);
-	glfwMakeContextCurrent(window);
-}
-
-void Vis::initFramebuffers() {
-	framebufferFront = new Framebuffer(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
-	framebufferBack = new Framebuffer(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
 }
 
 void Vis::initAxisVertices() {
@@ -87,8 +81,6 @@ void Vis::initAxisVertices() {
 		  0.0f,   0.0f, 100.0f, 1.0f, 0.0f, 1.0f,
 	};
 
-	glGenVertexArrays(1, &axisArray);
-	glGenBuffers(1, &axisBuffer);
 	glBindVertexArray(axisArray);
 	glBindBuffer(GL_ARRAY_BUFFER, axisBuffer);
 
@@ -114,8 +106,6 @@ void Vis::initOscVertices() {
 	oscDataX[VIS_OSC_COUNT+1] = oscDataX[VIS_OSC_COUNT];
 	oscDataY[VIS_OSC_COUNT+1] = oscDataY[VIS_OSC_COUNT];
 
-	glGenVertexArrays(1, &oscArray);
-	glGenBuffers(1, &oscBuffer);
 	glBindVertexArray(oscArray);
 	glBindBuffer(GL_ARRAY_BUFFER, oscBuffer);
 
@@ -143,8 +133,6 @@ void Vis::initGridVertices() {
 		gridDataYScale[i][1] = 1.0f;
 	}
 
-	glGenVertexArrays(1, &gridArray);
-	glGenBuffers(1, &gridBuffer);
 	glBindVertexArray(gridArray);
 	glBindBuffer(GL_ARRAY_BUFFER, gridBuffer);
 
@@ -172,8 +160,6 @@ void Vis::initScreenQuadVertices() {
 		 1.0f,  1.0f,  1.0f, 1.0f
 	};
 
-	glGenVertexArrays(1, &screenQuadArray);
-	glGenBuffers(1, &screenQuadBuffer);
 	glBindVertexArray(screenQuadArray);
 	glBindBuffer(GL_ARRAY_BUFFER, screenQuadBuffer);
 
@@ -187,40 +173,6 @@ void Vis::initScreenQuadVertices() {
 	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-}
-
-void Vis::initMatrices() {
-	projectionMatrix = glm::perspective(glm::radians(50.0f), (float)GEN_VIDEO_WIDTH / (float)GEN_VIDEO_HEIGHT, 0.1f, 10000.0f);
-	viewMatrix = glm::lookAt(
-		glm::vec3(0.0f, 400.0f, 600.0f),
-		glm::vec3(0.0f, -150.0f, 0.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f));
-}
-
-void Vis::initShaders() {
-	axisShader = new Shader(
-#include "shaders/axisShader.glsl"
-	);
-
-	lineShader = new Shader(
-#include "shaders/lineShader.glsl"
-	);
-
-	gridShader = new Shader(
-#include "shaders/gridShader.glsl"
-	);
-
-	tiltShiftShader = new Shader(
-#include "shaders/tiltShiftShader.glsl"
-	);
-
-	filmShader = new Shader(
-#include "shaders/filmShader.glsl"
-	);
-
-	copyShader = new Shader(
-#include "shaders/copyShader.glsl"
-	);
 }
 
 double getBandDb(double *freqData, size_t freqDataSize, double freqLow, double freqHigh) {
@@ -301,7 +253,7 @@ void Vis::drawOsc() {
 	lineShader->setMat4("view", viewMatrix);
 	lineShader->setMat4("model", modelMatrix);
 	lineShader->setVec3("color", 1.0f, 1.0f, 1.0f);
-	lineShader->setFloat("lineWidth", 1.5f);
+	lineShader->setFloat("lineWidth", 2.0f);
 	glBindVertexArray(oscArray);
 	glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, VIS_OSC_COUNT + 2);
 	glBindVertexArray(0);
@@ -332,9 +284,7 @@ void Vis::drawScreenQuad(unsigned int texture) {
 }
 
 void Vis::swapFramebuffers() {
-	Framebuffer *tmp = framebufferFront;
-	framebufferFront = framebufferBack;
-	framebufferBack = tmp;
+	framebufferFront.swap(framebufferBack);
 }
 
 void Vis::drawTiltShiftPass() {
@@ -440,12 +390,12 @@ void Vis::drawFilmPass(float time, double *freqData, size_t freqDataSize) {
 
 void Vis::drawScreenPass() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, windowFramebufferWidth, windowFramebufferHeight);
+	glViewport(0, 0, window->framebufferWidth, window->framebufferHeight);
 	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	copyShader->use();
 	drawScreenQuad(framebufferFront->texture);
-	glfwSwapBuffers(window);
+	glfwSwapBuffers(window->window);
 }
 
 void Vis::drawFrame(float time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize) {	
@@ -471,24 +421,19 @@ void Vis::drawFrame(float time, double *timeData, size_t timeDataSize, double *f
 	glfwPollEvents();
 }
 
+void Vis::drawEndFrame() {
+	framebufferFront->activate();
+	glDisable(GL_DEPTH_TEST);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	drawScreenQuad(endFrame);	
+
+	drawScreenPass();
+}
+
 void Vis::readPixels(uint8_t *pixels) {
 	glBindFramebuffer(GL_FRAMEBUFFER, framebufferFront->id);
 	glReadPixels(0, 0, GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-Vis::~Vis() {
-	delete bloomPass;
-	delete axisShader;
-	delete gridShader;
-	delete copyShader;
-	glDeleteVertexArrays(1, &axisArray);
-	glDeleteBuffers(1, &axisBuffer);
-	glDeleteVertexArrays(1, &gridArray);
-	glDeleteBuffers(1, &gridBuffer);
-	glDeleteVertexArrays(1, &screenQuadArray);
-	glDeleteBuffers(1, &screenQuadBuffer);
-	delete framebufferFront;
-	delete framebufferBack;
-	glfwTerminate();
 }

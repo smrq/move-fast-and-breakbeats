@@ -1,56 +1,55 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include "deps/gl.h"
-#include "shader.h"
-#include "framebuffer.h"
+#include "gl/window.h"
+#include "gl/wrappers.h"
+#include "gl/shader.h"
+#include "gl/framebuffer.h"
 #include "bloom.h"
 #include "constants.h"
 
 class Vis {
-	GLFWwindow *window;
-	int windowFramebufferWidth;
-	int windowFramebufferHeight;
+	std::shared_ptr<gl::Window> window;
 
-	Framebuffer *framebufferFront;
-	Framebuffer *framebufferBack;
+	std::unique_ptr<gl::Framebuffer> framebufferFront;
+	std::unique_ptr<gl::Framebuffer> framebufferBack;
 
-	unsigned int axisBuffer;
-	unsigned int axisArray;
+	gl::Buffer axisBuffer;
+	gl::VertexArray axisArray;
 
 	float oscDataX[VIS_OSC_COUNT+2];
 	float oscDataY[VIS_OSC_COUNT+2];
-	unsigned int oscBuffer;
-	unsigned int oscArray;
+	gl::Buffer oscBuffer;
+	gl::VertexArray oscArray;
 
 	float gridDataXZ[VIS_GRID_COUNT][2];
 	float gridDataYScale[VIS_GRID_COUNT][2];
-	unsigned int gridBuffer;
-	unsigned int gridArray;
+	gl::Buffer gridBuffer;
+	gl::VertexArray gridArray;
 
-	unsigned int screenQuadBuffer;
-	unsigned int screenQuadArray;
+	gl::Buffer screenQuadBuffer;
+	gl::VertexArray screenQuadArray;
 
 	glm::mat4 projectionMatrix;
 	glm::mat4 viewMatrix;
 
-	Shader *axisShader;
-	Shader *lineShader;
-	Shader *gridShader;
-	Shader *tiltShiftShader;
-	Shader *filmShader;
-	Shader *copyShader;
+	std::unique_ptr<gl::Shader> axisShader;
+	std::unique_ptr<gl::Shader> lineShader;
+	std::unique_ptr<gl::Shader> gridShader;
+	std::unique_ptr<gl::Shader> tiltShiftShader;
+	std::unique_ptr<gl::Shader> filmShader;
+	std::unique_ptr<gl::Shader> copyShader;
 
-	BloomPass *bloomPass;
+	std::unique_ptr<BloomPass> bloomPass;
 
-	void initWindow();
-	void initFramebuffers();
+	gl::Texture endFrame;
+
 	void initAxisVertices();
 	void initOscVertices();
 	void initGridVertices();
 	void initScreenQuadVertices();
-	void initMatrices();
-	void initShaders();
 
 	void populateOscData(double *timeData, size_t timeDataSize);
 	void populateGridData(double *freqData, size_t freqDataSize);
@@ -67,8 +66,8 @@ class Vis {
 	void drawScreenPass();
 
 public:
-	Vis();
+	Vis(std::shared_ptr<gl::Window> window, const char *endFrameFilename);
 	void drawFrame(float time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize);
+	void drawEndFrame();
 	void readPixels(uint8_t *pixels);
-	~Vis();
 };

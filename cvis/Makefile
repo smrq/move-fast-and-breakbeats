@@ -8,8 +8,8 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
 CXX := clang++
-CPPFLAGS ?= -Ilib/glad/include -Ilib/glm -MMD -MP
-CXXFLAGS ?= -std=c++11
+CPPFLAGS ?= -Isrc -Ilib/glad/include -Ilib/glm -Ilib/stb -MMD -MP
+CXXFLAGS ?= -std=c++14
 LDFLAGS ?= -lavcodec -lavformat -lavfilter -lavdevice -lswresample -lswscale -lavutil -lavresample -lfftw3 -lglfw -framework OpenGL
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
@@ -31,7 +31,7 @@ clean:
 	$(RM) -r $(BUILD_DIR)
 
 run: $(BUILD_DIR)/$(TARGET_EXEC)
-	./$(BUILD_DIR)/$(TARGET_EXEC) ../vis/public/media/tetrik.flac tetrik.mp4
+	./$(BUILD_DIR)/$(TARGET_EXEC) -i ../vis/public/media/tetrik.flac -o tetrik.mp4 -f ./media/endframe.png -e 452.684 -s 0.75
 
 -include $(DEPS)
 

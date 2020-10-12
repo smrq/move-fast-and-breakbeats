@@ -2,6 +2,8 @@
 #include <string>
 #include "deps/gl.h"
 
+namespace gl {
+
 static void checkCompileErrors(GLuint shader, const std::string &type) {
 	GLint success;
 	GLchar infoLog[1024];
@@ -142,3 +144,5 @@ struct Shader {
 		glUniformMatrix4fv(glGetUniformLocation(id, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 	}
 };
+
+}

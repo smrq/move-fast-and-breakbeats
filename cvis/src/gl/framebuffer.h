@@ -1,6 +1,8 @@
 #pragma once
 #include "deps/gl.h"
 
+namespace gl {
+
 struct Framebuffer {
 	int width;
 	int height;
@@ -48,3 +50,5 @@ struct Framebuffer {
 		glDeleteFramebuffers(1, &id);
 	}
 };
+
+}

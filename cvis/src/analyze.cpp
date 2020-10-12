@@ -31,10 +31,10 @@ Analyzer::~Analyzer() {
 	fftw_free(lastFreqResult);
 }
 
-void Analyzer::analyze(double *signal, size_t signalSize, int firstSample) {
+void Analyzer::analyze(double *signal, size_t signalSamples, int firstSample) {
 	for (int i = 0; i < fftSize; ++i) {
 		int sampleIndex = i + firstSample;
-		if (sampleIndex >= 0 && sampleIndex < signalSize) {
+		if (sampleIndex >= 0 && sampleIndex < signalSamples) {
 			timeResult[i] = 0.5 * (signal[2*sampleIndex] + signal[2*sampleIndex + 1]);
 		} else {
 			timeResult[i] = 0.0;

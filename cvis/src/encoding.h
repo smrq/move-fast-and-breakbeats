@@ -13,21 +13,24 @@ struct Stream {
 	AVCodecContext *codecCtx;
 	AVFrame *frame;
 
+	int64_t startPts;
 	int64_t nextPts;
 
-	Stream(AVFormatContext *formatCtx, enum StreamType streamType, const char *codecName);
+	Stream(AVFormatContext *formatCtx, enum StreamType streamType, const char *codecName, int64_t startPts);
 	~Stream();
 };
 
 struct VideoStream : public Stream {
 	SwsContext *sws;
 
-	VideoStream(AVFormatContext *formatCtx, const char *codecName);
+	VideoStream(AVFormatContext *formatCtx, const char *codecName, int64_t startPts);
 	~VideoStream();
 };
 
 struct AudioStream : public Stream {
-	AudioStream(AVFormatContext *formatCtx, const char *codecName);
+	SwrContext *swr;
+	
+	AudioStream(AVFormatContext *formatCtx, const char *codecName, int64_t startPts);
 	~AudioStream();
 };
 
@@ -36,10 +39,10 @@ struct Encoder {
 	VideoStream *videoStream;
 	AudioStream *audioStream;
 
-	Encoder(const char *filename);
+	Encoder(const char *filename, int audioOffset);
 	enum StreamType nextFrameType();
-	void writeVideoFrame(uint8_t *pixels);
-	void writeAudioFrame();
+	bool writeVideoFrame(uint8_t *pixels);
+	bool writeAudioFrame(double *signal, size_t signalSamples);
 	int writeFrame(AVCodecContext *codecCtx, AVStream *stream, AVFrame *frame);
 	void logPacket(const AVPacket *packet);
 	~Encoder();
