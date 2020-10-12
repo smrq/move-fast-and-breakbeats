@@ -83,9 +83,6 @@ int main(int argc, char **argv) {
 			encoder->writeVideoFrame(pixels);
 		} else {
 			audioFinished = !encoder->writeAudioFrame(signal->data, signal->length / 2);
-			if (encoder->audioStream->nextPts >= OUT_AUDIO_SAMPLE_RATE * 60) {
-				audioFinished = true;
-			}
 		}
 	}
 }
