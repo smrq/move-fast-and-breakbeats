@@ -33,5 +33,5 @@ target_link_libraries(${PROJECT_NAME} glfw)
 target_link_libraries(${PROJECT_NAME} PkgConfig::LIBAV)
 target_link_libraries(${PROJECT_NAME} fftw3)
 
-add_custom_target(tetrik COMMAND ${PROJECT_NAME} -i ../media/tetrik.flac -o ~/mnt/Undine/tetrik.mp4 -f ../media/endframe.png -e 452.684 -s 0.75)
+add_custom_target(tetrik COMMAND ${PROJECT_NAME} --endframe ../media/endframe.png 452.684 --silence 0.75 ../media/tetrik.flac ~/mnt/Undine/tetrik.mp4)
 add_dependencies(tetrik cvis)

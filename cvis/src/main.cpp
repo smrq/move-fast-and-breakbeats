@@ -1,4 +1,3 @@
-#include <unistd.h>
 #include <memory>
 #include "deps/gl.h"
 #include "constants.h"
@@ -9,7 +8,7 @@
 #include "vis.h"
 
 void usage(const char *x) {
-	printf("usage: %s -i INPUT_AUDIO -o OUTPUT_VIDEO -f END_FRAME_IMAGE -e END_FRAME_TIME [-s INITIAL_SILENCE]\n", x);
+	printf("usage: %s --endframe IMAGE TIME [--silence TIME] INPUT_AUDIO OUTPUT_VIDEO\n", x);
 }
 
 int main(int argc, char **argv) {
@@ -20,33 +19,33 @@ int main(int argc, char **argv) {
 	double silence = 0.0;
 	double endFrameTime = -1.0;
 
-	while ((c = getopt(argc, argv, "i:o:f:e:s:")) != -1) {
-		switch (c) {
-			case 'i':
-				inputFilename = optarg;
-				break;
-			case 'o':
-				outputFilename = optarg;
-				break;
-			case 'f':
-				endFrameFilename = optarg;
-				break;
-			case 'e':
-				endFrameTime = atof(optarg);
-				break;
-			case 's':
-				silence = atof(optarg);
-				break;
-			case '?':
-			default:
-				usage(argv[0]);
-				exit(1);
-		}
+	int argIndex;
+	for (argIndex = 1; argIndex < argc; ++argIndex) {
+		if (!strcmp(argv[argIndex], "--endframe")) {
+			if (++argIndex >= argc) break;
+			endFrameFilename = argv[argIndex];
+			if (++argIndex >= argc) break;
+			endFrameTime = atof(argv[argIndex]);
+		} else if (!strcmp(argv[argIndex], "--silence")) {
+			if (++argIndex >= argc) break;
+			silence = atof(argv[argIndex]);
+		} else break;
 	}
+	if (argIndex < argc-1) {
+		inputFilename = argv[argIndex];
+		outputFilename = argv[argIndex + 1];
+	}
+
 	if (inputFilename == NULL || outputFilename == NULL || endFrameFilename == NULL || endFrameTime < 0.0) {
 		usage(argv[0]);
 		exit(1);
 	}
+
+	printf("=== cvis ===\n\n"
+		"Input audio:  %s\nOutput video: %s\n\n"
+		"Initial silence: %f seconds\n\n"
+		"End frame: %s\nDisplaying at audio t=%f seconds\n\n============\n\n",
+		inputFilename, outputFilename, silence, endFrameFilename, endFrameTime);
 
 	int audioOffset = VIS_AUDIO_OFFSET + (silence * OUT_AUDIO_SAMPLE_RATE);
 	int endFrame = (int)(OUT_VIDEO_FRAMERATE * (endFrameTime + ((double)audioOffset / OUT_AUDIO_SAMPLE_RATE)));
