@@ -1,62 +1,17 @@
-#include "vis.h"
+#include "tetrik.h"
 
-static void hilbert(int n, int d, int *x, int *y) {
-	*x = 0;
-	*y = 0;
-	int t = d;
-
-	for (int s = 1; s < n; s <<= 1) {
-		int rx = 1 & (t >> 1);
-		int ry = 1 & (t ^ rx);
-
-		if (ry == 0) {
-			if (rx == 1) {
-				*x = s - 1 - *x;
-				*y = s - 1 - *y;
-			}
-			int tmp = *x;
-			*x = *y;
-			*y = tmp;
-		}
-
-		*x += s * rx;
-		*y += s * ry;
-		t = t >> 2;
-	}
-}
-
-static float lerp(float value, float in1, float in2, float out1, float out2) {
-	return ((value - in1) / (in2 - in1)) * (out2 - out1) + out1;
-}
-
-static float lerpClamped(float value, float in1, float in2, float out1, float out2) {
-	return lerp((value < in1) ? in1 : (value > in2) ? in2 : value, in1, in2, out1, out2);
-}
-
-Vis::Vis(std::shared_ptr<gl::Window> window, const char *endFrameFilename)
+TetrikScene::TetrikScene(std::shared_ptr<gl::Window> window, const char *endFrameFilename)
 : window(std::move(window)), endFrame(endFrameFilename) {
 	framebufferFront = std::make_unique<gl::Framebuffer>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
 	framebufferBack = std::make_unique<gl::Framebuffer>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, true, true);
 
-	axisShader = std::make_unique<gl::Shader>(
-#include "shaders/axisShader.glsl"
-	);
-	lineShader = std::make_unique<gl::Shader>(
-#include "shaders/lineShader.glsl"
-	);
-	gridShader = std::make_unique<gl::Shader>(
-#include "shaders/gridShader.glsl"
-	);
-	tiltShiftShader = std::make_unique<gl::Shader>(
-#include "shaders/tiltShiftShader.glsl"
-	);
-	filmShader = std::make_unique<gl::Shader>(
-#include "shaders/filmShader.glsl"
-	);
-	copyShader = std::make_unique<gl::Shader>(
-#include "shaders/copyShader.glsl"
-	);
-
+	axisShader = std::make_unique<gl::Shader>("shaders/axisShader.vert", "shaders/axisShader.geom", "shaders/axisShader.frag");
+	lineShader = std::make_unique<gl::Shader>("shaders/lineShader.vert", "shaders/lineShader.geom", "shaders/lineShader.frag");
+	gridShader = std::make_unique<gl::Shader>("shaders/gridShader.vert", "shaders/gridShader.frag");
+	tiltShiftShader = std::make_unique<gl::Shader>("shaders/uv2d.vert", "shaders/tiltShiftShader.frag");
+	filmShader = std::make_unique<gl::Shader>("shaders/uv2d.vert", "shaders/filmShader.frag");
+	copyShader = std::make_unique<gl::Shader>("shaders/uv2d.vert", "shaders/copyShader.frag");
+	
 	bloomPass = std::make_unique<BloomPass>(GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT);
 
 	projectionMatrix = glm::perspective(glm::radians(50.0f), (float)GEN_VIDEO_WIDTH / (float)GEN_VIDEO_HEIGHT, 0.1f, 10000.0f);
@@ -71,7 +26,7 @@ Vis::Vis(std::shared_ptr<gl::Window> window, const char *endFrameFilename)
 	initScreenQuadVertices();
 }
 
-void Vis::initAxisVertices() {
+void TetrikScene::initAxisVertices() {
 	float axisData[] = {
 		  0.0f,   0.0f,   0.0f, 1.0f, 1.0f, 0.0f,
 		100.0f,   0.0f,   0.0f, 1.0f, 1.0f, 0.0f,
@@ -96,15 +51,15 @@ void Vis::initAxisVertices() {
 	glBindVertexArray(0);		
 }
 
-void Vis::initOscVertices() {
-	for (int i = 0; i < VIS_OSC_COUNT; ++i) {
-		oscDataX[i+1] = lerpClamped(i, 0, VIS_OSC_COUNT, -500.0f, 500.0f);
+void TetrikScene::initOscVertices() {
+	for (int i = 0; i < TETRIK_OSC_COUNT; ++i) {
+		oscDataX[i+1] = lerpClamped(i, 0, TETRIK_OSC_COUNT, -500.0f, 500.0f);
 		oscDataY[i+1] = 0.0f;
 	}
 	oscDataX[0] = oscDataX[1];
 	oscDataY[0] = oscDataY[1];
-	oscDataX[VIS_OSC_COUNT+1] = oscDataX[VIS_OSC_COUNT];
-	oscDataY[VIS_OSC_COUNT+1] = oscDataY[VIS_OSC_COUNT];
+	oscDataX[TETRIK_OSC_COUNT+1] = oscDataX[TETRIK_OSC_COUNT];
+	oscDataY[TETRIK_OSC_COUNT+1] = oscDataY[TETRIK_OSC_COUNT];
 
 	glBindVertexArray(oscArray);
 	glBindBuffer(GL_ARRAY_BUFFER, oscBuffer);
@@ -123,12 +78,12 @@ void Vis::initOscVertices() {
 	glBindVertexArray(0);	
 }
 
-void Vis::initGridVertices() {
-	for (int i = 0; i < VIS_GRID_COUNT; ++i) {
+void TetrikScene::initGridVertices() {
+	for (int i = 0; i < TETRIK_GRID_COUNT; ++i) {
 		int x, z;
-		hilbert(VIS_GRID_COUNT, i, &x, &z);
-		gridDataXZ[i][0] = lerpClamped(x, 0, VIS_GRID_SIZE, -250.0f, 250.0f);
-		gridDataXZ[i][1] = lerpClamped(z, 0, VIS_GRID_SIZE, -250.0f, 250.0f);
+		hilbert(TETRIK_GRID_COUNT, i, &x, &z);
+		gridDataXZ[i][0] = lerpClamped(x, 0, TETRIK_GRID_SIZE, -250.0f, 250.0f);
+		gridDataXZ[i][1] = lerpClamped(z, 0, TETRIK_GRID_SIZE, -250.0f, 250.0f);
 		gridDataYScale[i][0] = 0.0f;
 		gridDataYScale[i][1] = 1.0f;
 	}
@@ -150,7 +105,7 @@ void Vis::initGridVertices() {
 	glBindVertexArray(0);
 }
 
-void Vis::initScreenQuadVertices() {
+void TetrikScene::initScreenQuadVertices() {
 	float screenQuadVertices[] = {
 		-1.0f,  1.0f,  0.0f, 1.0f,
 		-1.0f, -1.0f,  0.0f, 0.0f,
@@ -199,25 +154,25 @@ double getBandDb(double *freqData, size_t freqDataSize, double freqLow, double f
 	return 20.0 * log10(power);
 }
 
-void Vis::populateOscData(double *timeData, size_t timeDataSize) {
-	int downsample = timeDataSize / VIS_OSC_COUNT;
-	for (int i = 0; i < VIS_OSC_COUNT; ++i) {
+void TetrikScene::populateOscData(double *timeData, size_t timeDataSize) {
+	int downsample = timeDataSize / TETRIK_OSC_COUNT;
+	for (int i = 0; i < TETRIK_OSC_COUNT; ++i) {
 		oscDataY[i+1] = (float)timeData[i * downsample] * 100.0f;
 	}
 	oscDataY[0] = oscDataY[1];
-	oscDataY[VIS_OSC_COUNT+1] = oscDataY[VIS_OSC_COUNT];
+	oscDataY[TETRIK_OSC_COUNT+1] = oscDataY[TETRIK_OSC_COUNT];
 
 	glBindBuffer(GL_ARRAY_BUFFER, oscBuffer);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(oscDataX), sizeof(oscDataY), oscDataY);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Vis::populateGridData(double *freqData, size_t freqDataSize) {	
-	double minPitch = log2(VIS_MIN_FREQ);
-	double maxPitch = log2(VIS_MAX_FREQ);
-	double bandSizePitch = (maxPitch - minPitch) / VIS_GRID_COUNT;
+void TetrikScene::populateGridData(double *freqData, size_t freqDataSize) {	
+	double minPitch = log2(TETRIK_MIN_FREQ);
+	double maxPitch = log2(TETRIK_MAX_FREQ);
+	double bandSizePitch = (maxPitch - minPitch) / TETRIK_GRID_COUNT;
 
-	for (int i = 0; i < VIS_GRID_COUNT; ++i) {
+	for (int i = 0; i < TETRIK_GRID_COUNT; ++i) {
 		double bandLowPitch = minPitch + i * bandSizePitch;
 		double bandHighPitch = minPitch + (i+1) * bandSizePitch;
 
@@ -234,7 +189,7 @@ void Vis::populateGridData(double *freqData, size_t freqDataSize) {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Vis::drawAxes() {
+void TetrikScene::drawAxes() {
 	axisShader->use();
 	axisShader->setMat4("projection", projectionMatrix);
 	axisShader->setMat4("view", viewMatrix);
@@ -245,7 +200,7 @@ void Vis::drawAxes() {
 	glBindVertexArray(0);
 }
 
-void Vis::drawOsc() {
+void TetrikScene::drawOsc() {
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 300.0f));
 	lineShader->use();
@@ -255,11 +210,11 @@ void Vis::drawOsc() {
 	lineShader->setVec3("color", 1.0f, 1.0f, 1.0f);
 	lineShader->setFloat("lineWidth", 2.0f);
 	glBindVertexArray(oscArray);
-	glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, VIS_OSC_COUNT + 2);
+	glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, TETRIK_OSC_COUNT + 2);
 	glBindVertexArray(0);
 }
 
-void Vis::drawGrid(float time) {
+void TetrikScene::drawGrid(float time) {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::rotate(modelMatrix, 0.1f * time, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -271,23 +226,23 @@ void Vis::drawGrid(float time) {
 	gridShader->setVec2("resolution", (float)GEN_VIDEO_WIDTH, (float)GEN_VIDEO_HEIGHT);
 	gridShader->setVec3("color", 1.0f, 1.0f, 1.0f);
 	glBindVertexArray(gridArray);
-	glDrawArrays(GL_POINTS, 0, VIS_GRID_COUNT);
+	glDrawArrays(GL_POINTS, 0, TETRIK_GRID_COUNT);
 	glBindVertexArray(0);
 	glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
-void Vis::drawScreenQuad(unsigned int texture) {
+void TetrikScene::drawScreenQuad(unsigned int texture) {
 	glBindVertexArray(screenQuadArray);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 }
 
-void Vis::swapFramebuffers() {
+void TetrikScene::swapFramebuffers() {
 	framebufferFront.swap(framebufferBack);
 }
 
-void Vis::drawTiltShiftPass() {
+void TetrikScene::drawTiltShiftPass() {
 	framebufferBack->activate();
 	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -299,7 +254,7 @@ void Vis::drawTiltShiftPass() {
 	swapFramebuffers();
 }
 
-void Vis::drawBloomPass() {
+void TetrikScene::drawBloomPass() {
 	bloomPass->brightFramebuffer->activate();
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -368,7 +323,7 @@ void Vis::drawBloomPass() {
 	glDisable(GL_BLEND);
 }
 
-void Vis::drawFilmPass(float time, double *freqData, size_t freqDataSize) {
+void TetrikScene::drawFilmPass(float time, double *freqData, size_t freqDataSize) {
 	float dbLow = getBandDb(freqData, freqDataSize, 20, 40);
 	float dbHigh = getBandDb(freqData, freqDataSize, 2000, 16000);
 
@@ -388,7 +343,7 @@ void Vis::drawFilmPass(float time, double *freqData, size_t freqDataSize) {
 	swapFramebuffers();
 }
 
-void Vis::drawScreenPass() {
+void TetrikScene::drawScreenPass() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, window->framebufferWidth, window->framebufferHeight);
 	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -398,7 +353,7 @@ void Vis::drawScreenPass() {
 	glfwSwapBuffers(window->window);
 }
 
-void Vis::drawFrame(float time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize) {	
+void TetrikScene::drawFrame(float time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize) {	
 	populateOscData(timeData, timeDataSize);
 	populateGridData(freqData, freqDataSize);
 
@@ -421,7 +376,7 @@ void Vis::drawFrame(float time, double *timeData, size_t timeDataSize, double *f
 	glfwPollEvents();
 }
 
-void Vis::drawEndFrame() {
+void TetrikScene::drawEndFrame() {
 	framebufferFront->activate();
 	glDisable(GL_DEPTH_TEST);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -432,7 +387,7 @@ void Vis::drawEndFrame() {
 	drawScreenPass();
 }
 
-void Vis::readPixels(uint8_t *pixels) {
+void TetrikScene::readPixels(uint8_t *pixels) {
 	glBindFramebuffer(GL_FRAMEBUFFER, framebufferFront->id);
 	glReadPixels(0, 0, GEN_VIDEO_WIDTH, GEN_VIDEO_HEIGHT, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

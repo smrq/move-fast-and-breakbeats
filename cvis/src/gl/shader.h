@@ -1,72 +1,101 @@
 #pragma once
+#include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include "deps/gl.h"
 
 namespace gl {
 
-static void checkCompileErrors(GLuint shader, const std::string &type) {
-	GLint success;
-	GLchar infoLog[1024];
-	if (type != "PROGRAM") {
+struct Shader {
+	typedef std::map<std::string, std::string> defines_t;
+	unsigned int id;
+
+	static void compileShader(const unsigned int shader, const std::string &filename, const defines_t &defines) {
+		std::stringstream stream;
+
+		stream << "#version 330 core" << std::endl;
+
+		for (auto element: defines) {
+			stream << "#define " << element.first << " " << element.second << std::endl;
+		}
+
+		std::ifstream file;
+		file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		try {
+			file.open(filename);
+			stream << file.rdbuf();
+			file.close();
+		} catch (std::ifstream::failure &err) {
+			fprintf(stderr, "Failed to read file %s\n", filename.c_str());
+			exit(1);
+		}
+		
+		std::string string = stream.str();
+		const char *code = string.c_str();
+
+		glShaderSource(shader, 1, &code, NULL);
+		glCompileShader(shader);
+		checkCompileErrors(shader, filename);
+	}
+
+	static void checkCompileErrors(const unsigned int shader, const std::string &filename) {
+		GLint success;
+		GLchar infoLog[1024];
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 		if (!success) {
 			glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-			fprintf(stderr, "Shader compilation failed: %s\n%s\n", type.c_str(), infoLog);
-		}
-	} else {
-		glGetProgramiv(shader, GL_LINK_STATUS, &success);
-		if (!success) {
-			glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-			fprintf(stderr, "Shader linking failed: %s\n%s\n", type.c_str(), infoLog);
+			fprintf(stderr, "Shader compilation failed: %s\n%s\n", filename.c_str(), infoLog);
 		}
 	}
-}
 
-struct Shader {
-	unsigned int id;
+	static void checkLinkErrors(const unsigned int program) {
+		GLint success;
+		GLchar infoLog[1024];
+		glGetProgramiv(program, GL_LINK_STATUS, &success);
+		if (!success) {
+			glGetProgramInfoLog(program, 1024, NULL, infoLog);
+			fprintf(stderr, "Shader linking failed\n%s\n", infoLog);
+		}
+	}
 
-	Shader(const char *vertexCode, const char *geometryCode, const char *fragmentCode) {
+	Shader(const char *vertexFilename, const char *geometryFilename, const char *fragmentFilename, const defines_t &defines) {
 		id = glCreateProgram();
 
 		unsigned int vertex, geometry, fragment;
 
 		vertex = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vertex, 1, &vertexCode, NULL);
-		glCompileShader(vertex);
-		checkCompileErrors(vertex, "VERTEX");
+		compileShader(vertex, vertexFilename, defines);
 		glAttachShader(id, vertex);
 
-		if (geometryCode != NULL) {
+		if (geometryFilename != NULL) {
 			geometry = glCreateShader(GL_GEOMETRY_SHADER);
-			glShaderSource(geometry, 1, &geometryCode, NULL);
-			glCompileShader(geometry);
-			checkCompileErrors(geometry, "GEOMETRY");
+			compileShader(geometry, geometryFilename, defines);
 			glAttachShader(id, geometry);
 		}
 
 		fragment = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fragment, 1, &fragmentCode, NULL);
-		glCompileShader(fragment);
-		checkCompileErrors(fragment, "FRAGMENT");
+		compileShader(fragment, fragmentFilename, defines);
 		glAttachShader(id, fragment);
 
 		glLinkProgram(id);
-		checkCompileErrors(id, "PROGRAM");
+		checkLinkErrors(id);
 
 		glDeleteShader(vertex);
-		if (geometryCode != NULL) {
+		if (geometryFilename != NULL) {
 			glDeleteShader(geometry);
 		}
 		glDeleteShader(fragment);
 	}
 
-	Shader(const char *vertexCode, const char *fragmentCode): Shader(vertexCode, NULL, fragmentCode) {}
+	Shader(const char *vertexFilename, const char *geometryFilename, const char *fragmentFilename)
+	: Shader(vertexFilename, geometryFilename, fragmentFilename, defines_t()) {}
 
-	Shader(const std::string &vertexCode, const std::string &geometryCode, const std::string &fragmentCode)
-	: Shader(vertexCode.c_str(), geometryCode.c_str(), fragmentCode.c_str()) {}
+	Shader(const char *vertexFilename, const char *fragmentFilename, const defines_t &defines)
+	: Shader(vertexFilename, NULL, fragmentFilename, defines) {}
 
-	Shader(const std::string &vertexCode, const std::string &fragmentCode)
-	: Shader(vertexCode.c_str(), NULL, fragmentCode.c_str()) {}
+	Shader(const char *vertexFilename, const char *fragmentFilename)
+	: Shader(vertexFilename, NULL, fragmentFilename, defines_t()) {}
 
 	void use() const { 
 		glUseProgram(id); 

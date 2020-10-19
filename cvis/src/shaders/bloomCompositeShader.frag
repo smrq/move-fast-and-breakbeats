@@ -1,20 +1,3 @@
-R"(
-
-#version 330 core
-
-layout (location = 0) in vec2 position;
-layout (location = 1) in vec2 uv;
-out vec2 v_uv;
-
-void main() {
-	v_uv = uv;
-	gl_Position = vec4(position, 0.0, 1.0);
-}
-
-)", R"(
-
-#version 330 core
-
 in vec2 v_uv;
 layout (location = 0) out vec4 f_color;
 
@@ -42,5 +25,3 @@ void main() {
 		lerpBloomFactor(factors[3]) * vec4(tintColors[3], 1.0) * texture(blurTexture3, v_uv) + 
 		lerpBloomFactor(factors[4]) * vec4(tintColors[4], 1.0) * texture(blurTexture4, v_uv));
 }
-
-)"

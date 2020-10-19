@@ -1,11 +1,10 @@
 #include <memory>
-#include "deps/gl.h"
-#include "constants.h"
-#include "encoding.h"
-#include "decoding.h"
-#include "buffer.h"
 #include "analyze.h"
-#include "vis.h"
+#include "codec/decoding.h"
+#include "codec/encoding.h"
+#include "constants.h"
+#include "deps/gl.h"
+#include "tetrik/tetrik.h"
 
 void usage(const char *x) {
 	printf("usage: %s --endframe IMAGE TIME [--silence TIME] INPUT_AUDIO OUTPUT_VIDEO\n", x);
@@ -47,18 +46,18 @@ int main(int argc, char **argv) {
 		"End frame: %s\nDisplaying at audio t=%f seconds\n\n============\n\n",
 		inputFilename, outputFilename, silence, endFrameFilename, endFrameTime);
 
-	int audioOffset = VIS_AUDIO_OFFSET + (silence * OUT_AUDIO_SAMPLE_RATE);
+	int audioOffset = OUT_AUDIO_OFFSET + (silence * OUT_AUDIO_SAMPLE_RATE);
 	int endFrame = (int)(OUT_VIDEO_FRAMERATE * (endFrameTime + ((double)audioOffset / OUT_AUDIO_SAMPLE_RATE)));
 
-	auto signal = std::make_unique<Buffer<double>>(2 * 1024 * 1024);
+	std::vector<double> signal(2 * 1024 * 1024);
 	auto decoder = std::make_unique<Decoder>(inputFilename);
-	decoder->decode(signal.get());
+	decoder->decode(signal);
 
 	auto analyzer = std::make_unique<Analyzer>(FFT_SIZE, FFT_SMOOTHING);
 	auto encoder = std::make_unique<Encoder>(outputFilename, audioOffset);
 
 	auto window = std::make_shared<gl::Window>(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenGL");
-	auto vis = std::make_unique<Vis>(window, endFrameFilename);
+	auto scene = std::make_unique<TetrikScene>(window, endFrameFilename);
 
 	uint8_t *pixels = (uint8_t *)malloc(GEN_VIDEO_WIDTH * GEN_VIDEO_HEIGHT * 4 * sizeof(uint8_t));
 
@@ -69,19 +68,19 @@ int main(int argc, char **argv) {
 			int frame = encoder->videoStream->nextPts;
 			if (frame < endFrame) {
 				int sample = frame * OUT_AUDIO_SAMPLE_RATE / OUT_VIDEO_FRAMERATE - audioOffset;
-				analyzer->analyze(signal->data, signal->length / 2, sample);
-				vis->drawFrame(
+				analyzer->analyze(signal.data(), signal.size() / 2, sample);
+				scene->drawFrame(
 					(float)frame / OUT_VIDEO_FRAMERATE,
 					analyzer->timeResult, FFT_SIZE,
 					analyzer->freqResult, FFT_SIZE / 2);
 			} else {
-				vis->drawEndFrame();
+				scene->drawEndFrame();
 				videoFinished = true;
 			}
-			vis->readPixels(pixels);
+			scene->readPixels(pixels);
 			encoder->writeVideoFrame(pixels);
 		} else {
-			audioFinished = !encoder->writeAudioFrame(signal->data, signal->length / 2);
+			audioFinished = !encoder->writeAudioFrame(signal.data(), signal.size() / 2);
 		}
 	}
 }

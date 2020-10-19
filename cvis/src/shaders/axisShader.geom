@@ -1,23 +1,3 @@
-R"(
-
-#version 330 core
-
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec3 color;
-out vec4 v_color;
-
-uniform mat4 projection;
-uniform mat4 view;
-
-void main() {
-	gl_Position = projection * view * vec4(position, 1.0);
-	v_color = vec4(color, 1.0);
-}
-
-)", R"(
-
-#version 330 core
-
 layout (lines) in;
 in vec4 v_color[2];
 layout (triangle_strip, max_vertices = 4) out;
@@ -43,16 +23,3 @@ void main() {
 	EmitVertex();
 	EndPrimitive();
 }
-
-)", R"(
-
-#version 330 core
-
-in vec4 g_color;
-layout (location = 0) out vec4 f_color;
-
-void main() {
-	f_color = g_color;
-}
-
-)"

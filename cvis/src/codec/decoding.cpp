@@ -42,16 +42,7 @@ Decoder::Decoder(const char *filename) {
 	if (!swr_is_initialized(swr)) { fprintf(stderr, "Could not initialize resampler\n"); exit(1); }	
 }
 
-void Decoder::logPacket(const AVPacket *packet) {
-	AVRational *time_base = &formatCtx->streams[packet->stream_index]->time_base;
-	printf("pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d\n",
-		av_ts2str(packet->pts), av_ts2timestr(packet->pts, time_base),
-		av_ts2str(packet->dts), av_ts2timestr(packet->dts, time_base),
-		av_ts2str(packet->duration), av_ts2timestr(packet->duration, time_base),
-		packet->stream_index);
-}
-
-void Decoder::decode(Buffer<double> *buf) {
+void Decoder::decode(std::vector<double> &buffer) {
 	int result;
 
 	AVPacket *packet = av_packet_alloc();
@@ -64,8 +55,6 @@ void Decoder::decode(Buffer<double> *buf) {
 		if (packet->stream_index != streamIndex) {
 			continue;
 		}
-
-		// logPacket(packet);
 
 		result = avcodec_send_packet(codecCtx, packet);	
 		if (result < 0) { fprintf(stderr, "Error sending packet to decoder: %s\n", av_err2str(result)); exit(1); }
@@ -81,10 +70,14 @@ void Decoder::decode(Buffer<double> *buf) {
 
 			int maxSamples = swr_get_out_samples(swr, frame->nb_samples);
 
-			double *data = buf->request(2 * maxSamples);
+			int previousSize = buffer.size();
+			buffer.resize(previousSize + 2 * maxSamples);
+
+			double *data = buffer.data() + previousSize;
 			int samples = swr_convert(swr, (uint8_t **)&data, maxSamples, (const uint8_t**)frame->data, frame->nb_samples);
 			if (result < 0) { fprintf(stderr, "Error resampling audio\n"); exit(1); }
-			buf->markUsed(2 * samples);
+
+			buffer.resize(previousSize + 2 * samples);
 
 			av_frame_unref(frame);
 		}

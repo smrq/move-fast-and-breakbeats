@@ -18,12 +18,22 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 	libswscale
 	libavutil)
 
-add_executable(${PROJECT_NAME} src/main.cpp src/analyze.cpp src/decoding.cpp src/encoding.cpp src/vis.cpp src/deps/stb.cpp lib/glad/src/glad.c)
+add_executable(${PROJECT_NAME}
+	src/analyze.cpp
+	src/codec/decoding.cpp
+	src/codec/encoding.cpp
+	src/deps/stb.cpp
+	src/main.cpp
+	src/tetrik/tetrik.cpp
+	src/util.cpp
+	lib/fmt/src/format.cc
+	lib/glad/src/glad.c)
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
 
 target_include_directories(${PROJECT_NAME}
 	PUBLIC src
+	PUBLIC lib/fmt/include
 	PUBLIC lib/glad/include
 	PUBLIC lib/glm
 	PUBLIC lib/stb)
@@ -33,5 +43,8 @@ target_link_libraries(${PROJECT_NAME} glfw)
 target_link_libraries(${PROJECT_NAME} PkgConfig::LIBAV)
 target_link_libraries(${PROJECT_NAME} fftw3)
 
-add_custom_target(tetrik COMMAND ${PROJECT_NAME} --endframe ../media/endframe.png 452.684 --silence 0.75 ../media/tetrik.flac ~/mnt/Undine/tetrik.mp4)
+add_custom_target(shaders COMMAND cp -R ${CMAKE_SOURCE_DIR}/src/shaders ${CMAKE_BINARY_DIR})
+add_dependencies(cvis shaders)
+
+add_custom_target(tetrik COMMAND ${PROJECT_NAME} --endframe ../media/endframe.png 452.684 --silence 0.75 ../media/tetrik.flac ../media/tetrik.mp4)
 add_dependencies(tetrik cvis)

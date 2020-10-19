@@ -1,7 +1,7 @@
 #pragma once
+#include <vector>
 #include "deps/libav.h"
 #include "constants.h"
-#include "buffer.h"
 
 struct Decoder {
 	AVFormatContext *formatCtx;
@@ -12,7 +12,6 @@ struct Decoder {
 	SwrContext *swr;
 
 	Decoder(const char *filename);
-	void decode(Buffer<double> *buf);
-	void logPacket(const AVPacket *packet);
+	void decode(std::vector<double> &buffer);
 	~Decoder();
 };
