@@ -42,7 +42,8 @@ Decoder::Decoder(const char *filename) {
 	if (!swr_is_initialized(swr)) { fprintf(stderr, "Could not initialize resampler\n"); exit(1); }	
 }
 
-void Decoder::decode(std::vector<double> &buffer) {
+std::vector<double> Decoder::decode() {
+	std::vector<double> buffer;
 	int result;
 
 	AVPacket *packet = av_packet_alloc();
@@ -69,15 +70,13 @@ void Decoder::decode(std::vector<double> &buffer) {
 			}
 
 			int maxSamples = swr_get_out_samples(swr, frame->nb_samples);
+			double *tmp = new double[2 * maxSamples];
 
-			int previousSize = buffer.size();
-			buffer.resize(previousSize + 2 * maxSamples);
+			int samples = swr_convert(swr, (uint8_t **)&tmp, maxSamples, (const uint8_t**)frame->data, frame->nb_samples);
+			if (samples < 0) { fprintf(stderr, "Error resampling audio\n"); exit(1); }
 
-			double *data = buffer.data() + previousSize;
-			int samples = swr_convert(swr, (uint8_t **)&data, maxSamples, (const uint8_t**)frame->data, frame->nb_samples);
-			if (result < 0) { fprintf(stderr, "Error resampling audio\n"); exit(1); }
-
-			buffer.resize(previousSize + 2 * samples);
+			std::copy(tmp, tmp + 2 * samples, std::back_inserter(buffer));
+			delete[] tmp;
 
 			av_frame_unref(frame);
 		}
@@ -87,6 +86,8 @@ void Decoder::decode(std::vector<double> &buffer) {
 
 	av_frame_free(&frame);
 	av_packet_free(&packet);
+
+	return buffer;
 }
 
 Decoder::~Decoder() {

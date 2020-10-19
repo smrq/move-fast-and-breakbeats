@@ -12,6 +12,6 @@ struct Decoder {
 	SwrContext *swr;
 
 	Decoder(const char *filename);
-	void decode(std::vector<double> &buffer);
+	std::vector<double> decode();
 	~Decoder();
 };

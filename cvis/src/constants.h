@@ -3,11 +3,11 @@
 #define STR_(X) #X
 #define STR(X) STR_(X)
 
-#define WINDOW_WIDTH  1280
-#define WINDOW_HEIGHT 720
-
 #define FFT_SIZE      8192
 #define FFT_SMOOTHING 0.6
+
+#define WINDOW_WIDTH  1280
+#define WINDOW_HEIGHT 720
 
 #define GEN_VIDEO_AA     8
 #define GEN_VIDEO_WIDTH  3840

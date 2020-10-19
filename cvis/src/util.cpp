@@ -32,3 +32,27 @@ float lerp(float value, float in1, float in2, float out1, float out2) {
 float lerpClamped(float value, float in1, float in2, float out1, float out2) {
 	return lerp((value < in1) ? in1 : (value > in2) ? in2 : value, in1, in2, out1, out2);
 }
+
+double getBandDb(double *freqData, size_t freqDataSize, int sampleRate, double freqLow, double freqHigh) {
+	double hzPerBin = ((double)sampleRate / 2.0) / freqDataSize;
+
+	double realIndexLow = freqLow / hzPerBin;
+	int indexLow = (int)realIndexLow;
+	double tLow = realIndexLow - indexLow;
+	
+	double realIndexHigh = freqHigh / hzPerBin;
+	int indexHigh = (int)realIndexHigh;
+	double tHigh = realIndexHigh - indexHigh;
+
+	double power = 0;
+	for (int i = indexLow; i <= indexHigh; ++i) {
+		power += freqData[i];
+		if (i == indexLow) {
+			power -= freqData[i] * tLow;
+		}
+		if (i == indexHigh) {
+			power -= freqData[i] * (1.0 - tHigh);
+		}
+	}
+	return 20.0 * log10(power);
+}
