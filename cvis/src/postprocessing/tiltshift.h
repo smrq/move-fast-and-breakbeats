@@ -12,14 +12,14 @@ struct TiltShiftPass {
 		shader = std::make_unique<gl::Shader>("shaders/uv2d.vert", "shaders/tiltShiftShader.frag");
 	}
 
-	void draw(float focusPosition, float amount, float brightness) {
+	void draw(double focusPosition, double amount, double brightness) {
 		glContext->framebufferBack->activate();
 		glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		shader->use();
-		shader->setFloat("focusPosition", focusPosition);
-		shader->setFloat("amount", amount);
-		shader->setFloat("brightness", brightness);
+		shader->setFloat("focusPosition", (float)focusPosition);
+		shader->setFloat("amount", (float)amount);
+		shader->setFloat("brightness", (float)brightness);
 		glContext->drawFullScreen(glContext->framebufferFront->texture);
 		glContext->swapFramebuffers();
 	}

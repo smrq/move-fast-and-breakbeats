@@ -1,6 +1,6 @@
-#include "tetrik.h"
+#include "Nwwia.h"
 
-TetrikScene::TetrikScene(std::shared_ptr<GlContext> glContext)
+NwwiaScene::NwwiaScene(std::shared_ptr<GlContext> glContext, std::vector<std::string> &automationFilenames)
 : glContext(glContext) {
 	axisShader = std::make_unique<gl::Shader>("shaders/axisShader.vert", "shaders/axisShader.geom", "shaders/axisShader.frag");
 	lineShader = std::make_unique<gl::Shader>("shaders/lineShader.vert", "shaders/lineShader.geom", "shaders/lineShader.frag");
@@ -16,12 +16,51 @@ TetrikScene::TetrikScene(std::shared_ptr<GlContext> glContext)
 		glm::vec3(0.0f, -150.0f, 0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f));
 
+	readAutomationFiles(automationFilenames);
+
 	initAxisVertices();
 	initOscVertices();
 	initGridVertices();
 }
 
-void TetrikScene::initAxisVertices() {
+void NwwiaScene::readAutomationFiles(std::vector<std::string> &automationFilenames) {
+	for (auto &filename: automationFilenames) {
+		std::multimap<double, double> values;
+		std::ifstream inputStream(filename);
+		if (inputStream.fail()) {
+			fprintf(stderr, "Failed to open automation track file %s", filename.c_str());
+			exit(1);
+		}
+		std::string line;
+		while (getline(inputStream, line)) {
+			std::stringstream stringStream(line);
+			double key, value;
+			stringStream >> key;
+			stringStream >> value;
+			values.insert(std::multimap<double, double>::value_type(key, value));
+		}
+		automation.push_back(values);
+	}
+}
+
+double NwwiaScene::getAutomationLevel(int trackIndex, double time) {
+	auto &track = automation[trackIndex];
+
+	const double bpm = 120;
+	double beat = time * (bpm / 60.0);
+
+	auto itHigh = track.upper_bound(beat);
+	if (itHigh == track.begin()) {
+		return itHigh->second;
+	}
+	auto itLow = std::prev(itHigh);
+	if (itHigh == track.end()) {
+		return itLow->second;
+	}
+	return lerp(beat, itLow->first, itHigh->first, itLow->second, itHigh->second);
+}
+
+void NwwiaScene::initAxisVertices() {
 	float axisData[] = {
 		  0.0f,   0.0f,   0.0f, 1.0f, 1.0f, 0.0f,
 		100.0f,   0.0f,   0.0f, 1.0f, 1.0f, 0.0f,
@@ -46,15 +85,15 @@ void TetrikScene::initAxisVertices() {
 	glBindVertexArray(0);		
 }
 
-void TetrikScene::initOscVertices() {
-	for (int i = 0; i < TETRIK_OSC_COUNT; ++i) {
-		oscDataX[i+1] = (float)lerpClamped(i, 0, TETRIK_OSC_COUNT, -500, 500);
+void NwwiaScene::initOscVertices() {
+	for (int i = 0; i < NWWIA_OSC_COUNT; ++i) {
+		oscDataX[i+1] = (float)lerpClamped(i, 0, NWWIA_OSC_COUNT, -500, 500);
 		oscDataY[i+1] = 0.0f;
 	}
 	oscDataX[0] = oscDataX[1];
 	oscDataY[0] = oscDataY[1];
-	oscDataX[TETRIK_OSC_COUNT+1] = oscDataX[TETRIK_OSC_COUNT];
-	oscDataY[TETRIK_OSC_COUNT+1] = oscDataY[TETRIK_OSC_COUNT];
+	oscDataX[NWWIA_OSC_COUNT+1] = oscDataX[NWWIA_OSC_COUNT];
+	oscDataY[NWWIA_OSC_COUNT+1] = oscDataY[NWWIA_OSC_COUNT];
 
 	glBindVertexArray(oscArray);
 	glBindBuffer(GL_ARRAY_BUFFER, oscBuffer);
@@ -73,12 +112,12 @@ void TetrikScene::initOscVertices() {
 	glBindVertexArray(0);	
 }
 
-void TetrikScene::initGridVertices() {
-	for (int i = 0; i < TETRIK_GRID_COUNT; ++i) {
+void NwwiaScene::initGridVertices() {
+	for (int i = 0; i < NWWIA_GRID_COUNT; ++i) {
 		int x, z;
-		hilbert(TETRIK_GRID_COUNT, i, &x, &z);
-		gridDataXZ[i][0] = (float)lerpClamped(x, 0, TETRIK_GRID_SIZE, -250, 250);
-		gridDataXZ[i][1] = (float)lerpClamped(z, 0, TETRIK_GRID_SIZE, -250, 250);
+		hilbert(NWWIA_GRID_COUNT, i, &x, &z);
+		gridDataXZ[i][0] = (float)lerpClamped(x, 0, NWWIA_GRID_SIZE, -250, 250);
+		gridDataXZ[i][1] = (float)lerpClamped(z, 0, NWWIA_GRID_SIZE, -250, 250);
 		gridDataYScale[i][0] = 0.0f;
 		gridDataYScale[i][1] = 1.0f;
 	}
@@ -100,25 +139,25 @@ void TetrikScene::initGridVertices() {
 	glBindVertexArray(0);
 }
 
-void TetrikScene::populateOscData(double *timeData, size_t timeDataSize) {
-	int downsample = timeDataSize / TETRIK_OSC_COUNT;
-	for (int i = 0; i < TETRIK_OSC_COUNT; ++i) {
+void NwwiaScene::populateOscData(double *timeData, size_t timeDataSize) {
+	int downsample = timeDataSize / NWWIA_OSC_COUNT;
+	for (int i = 0; i < NWWIA_OSC_COUNT; ++i) {
 		oscDataY[i+1] = (float)timeData[i * downsample] * 100.0f;
 	}
 	oscDataY[0] = oscDataY[1];
-	oscDataY[TETRIK_OSC_COUNT+1] = oscDataY[TETRIK_OSC_COUNT];
+	oscDataY[NWWIA_OSC_COUNT+1] = oscDataY[NWWIA_OSC_COUNT];
 
 	glBindBuffer(GL_ARRAY_BUFFER, oscBuffer);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(oscDataX), sizeof(oscDataY), oscDataY);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void TetrikScene::populateGridData(double *freqData, size_t freqDataSize, int sampleRate) {	
-	double minPitch = log2(TETRIK_MIN_FREQ);
-	double maxPitch = log2(TETRIK_MAX_FREQ);
-	double bandSizePitch = (maxPitch - minPitch) / TETRIK_GRID_COUNT;
+void NwwiaScene::populateGridData(double *freqData, size_t freqDataSize, int sampleRate) {	
+	double minPitch = log2(NWWIA_MIN_FREQ);
+	double maxPitch = log2(NWWIA_MAX_FREQ);
+	double bandSizePitch = (maxPitch - minPitch) / NWWIA_GRID_COUNT;
 
-	for (int i = 0; i < TETRIK_GRID_COUNT; ++i) {
+	for (int i = 0; i < NWWIA_GRID_COUNT; ++i) {
 		double bandLowPitch = minPitch + i * bandSizePitch;
 		double bandHighPitch = minPitch + (i+1) * bandSizePitch;
 
@@ -126,8 +165,8 @@ void TetrikScene::populateGridData(double *freqData, size_t freqDataSize, int sa
 		double bandHighFreq = pow(2, bandHighPitch);
 
 		double db = getBandDb(freqData, freqDataSize, sampleRate, bandLowFreq, bandHighFreq);
-		gridDataYScale[i][0] = (float)lerpClamped(db, -100.0, -40.0, 0.0, 200.0);
-		gridDataYScale[i][1] = (float)lerpClamped(db, -100.0, -20.0, 1.0, 5.0);
+		gridDataYScale[i][0] = (float)lerpClamped(db, -100, -40, 0, 200);
+		gridDataYScale[i][1] = (float)lerpClamped(db, -100, -20, 1, 5);
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, gridBuffer);
@@ -135,7 +174,7 @@ void TetrikScene::populateGridData(double *freqData, size_t freqDataSize, int sa
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void TetrikScene::drawAxes() {
+void NwwiaScene::drawAxes() {
 	axisShader->use();
 	axisShader->setMat4("projection", projectionMatrix);
 	axisShader->setMat4("view", viewMatrix);
@@ -146,7 +185,7 @@ void TetrikScene::drawAxes() {
 	glBindVertexArray(0);
 }
 
-void TetrikScene::drawOsc() {
+void NwwiaScene::drawOsc() {
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 300.0f));
 	lineShader->use();
@@ -156,11 +195,11 @@ void TetrikScene::drawOsc() {
 	lineShader->setVec3("color", 1.0f, 1.0f, 1.0f);
 	lineShader->setFloat("lineWidth", 2.0f);
 	glBindVertexArray(oscArray);
-	glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, TETRIK_OSC_COUNT + 2);
+	glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, NWWIA_OSC_COUNT + 2);
 	glBindVertexArray(0);
 }
 
-void TetrikScene::drawGrid(double time) {
+void NwwiaScene::drawGrid(double time) {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::rotate(modelMatrix, (float)(0.1 * time), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -172,12 +211,12 @@ void TetrikScene::drawGrid(double time) {
 	gridShader->setVec2("resolution", (float)glContext->width, (float)glContext->height);
 	gridShader->setVec3("color", 1.0f, 1.0f, 1.0f);
 	glBindVertexArray(gridArray);
-	glDrawArrays(GL_POINTS, 0, TETRIK_GRID_COUNT);
+	glDrawArrays(GL_POINTS, 0, NWWIA_GRID_COUNT);
 	glBindVertexArray(0);
 	glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
-void TetrikScene::draw(double time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize, int sampleRate) {	
+void NwwiaScene::draw(double time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize, int sampleRate) {	
 	populateOscData(timeData, timeDataSize);
 	populateGridData(freqData, freqDataSize, sampleRate);
 
@@ -186,7 +225,7 @@ void TetrikScene::draw(double time, double *timeData, size_t timeDataSize, doubl
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// drawAxes();
+	drawAxes();
 	drawOsc();
 	drawGrid(time);
 

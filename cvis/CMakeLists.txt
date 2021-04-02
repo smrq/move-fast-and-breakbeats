@@ -26,6 +26,7 @@ add_executable(${PROJECT_NAME}
 	src/glcontext.cpp
 	src/main.cpp
 	src/scenes/endframe.cpp
+	src/scenes/nwwia.cpp
 	src/scenes/tetrik.cpp
 	src/util.cpp
 	lib/fmt/src/format.cc

@@ -1,4 +1,7 @@
 #pragma once
+#include <map>
+#include <string>
+#include <vector>
 #include "deps/gl.h"
 #include "glcontext.h"
 #include "gl/framebuffer.h"
@@ -9,25 +12,27 @@
 #include "postprocessing/tiltshift.h"
 #include "util.h"
 
-#define TETRIK_OSC_COUNT  1024
-#define TETRIK_GRID_SIZE  64
-#define TETRIK_GRID_COUNT (TETRIK_GRID_SIZE*TETRIK_GRID_SIZE)
-#define TETRIK_MIN_FREQ   40
-#define TETRIK_MAX_FREQ   16000
+#define NWWIA_OSC_COUNT  1024
+#define NWWIA_GRID_SIZE  64
+#define NWWIA_GRID_COUNT (NWWIA_GRID_SIZE*NWWIA_GRID_SIZE)
+#define NWWIA_MIN_FREQ   40
+#define NWWIA_MAX_FREQ   16000
 
-class TetrikScene {
+class NwwiaScene {
 	std::shared_ptr<GlContext> glContext;
 
 	gl::Buffer axisBuffer;
 	gl::VertexArray axisArray;
 
-	float oscDataX[TETRIK_OSC_COUNT+2];
-	float oscDataY[TETRIK_OSC_COUNT+2];
+	std::vector<std::multimap<double, double>> automation;
+
+	float oscDataX[NWWIA_OSC_COUNT+2];
+	float oscDataY[NWWIA_OSC_COUNT+2];
 	gl::Buffer oscBuffer;
 	gl::VertexArray oscArray;
 
-	float gridDataXZ[TETRIK_GRID_COUNT][2];
-	float gridDataYScale[TETRIK_GRID_COUNT][2];
+	float gridDataXZ[NWWIA_GRID_COUNT][2];
+	float gridDataYScale[NWWIA_GRID_COUNT][2];
 	gl::Buffer gridBuffer;
 	gl::VertexArray gridArray;
 
@@ -42,6 +47,9 @@ class TetrikScene {
 	std::unique_ptr<BloomPass> bloomPass;
 	std::unique_ptr<FilmPass> filmPass;
 
+	void readAutomationFiles(std::vector<std::string> &automationFilenames);
+	double getAutomationLevel(int trackIndex, double time);
+
 	void initAxisVertices();
 	void initOscVertices();
 	void initGridVertices();
@@ -54,6 +62,6 @@ class TetrikScene {
 	void drawGrid(double time);
 
 public:
-	TetrikScene(std::shared_ptr<GlContext> glContext);
+	NwwiaScene(std::shared_ptr<GlContext> glContext, std::vector<std::string> &automationFilenames);
 	void draw(double time, double *timeData, size_t timeDataSize, double *freqData, size_t freqDataSize, int sampleRate);
 };

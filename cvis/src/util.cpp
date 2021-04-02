@@ -25,11 +25,11 @@ void hilbert(int n, int d, int *x, int *y) {
 	}
 }
 
-float lerp(float value, float in1, float in2, float out1, float out2) {
+double lerp(double value, double in1, double in2, double out1, double out2) {
 	return ((value - in1) / (in2 - in1)) * (out2 - out1) + out1;
 }
 
-float lerpClamped(float value, float in1, float in2, float out1, float out2) {
+double lerpClamped(double value, double in1, double in2, double out1, double out2) {
 	return lerp((value < in1) ? in1 : (value > in2) ? in2 : value, in1, in2, out1, out2);
 }
 
