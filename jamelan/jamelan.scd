@@ -1,5 +1,3 @@
-Require("../server-setup", always: true);
-
 (
 Instr(\sin, {|freq=440, gate=0, env|
 	var amp = Latch.kr(gate, gate);
@@ -92,7 +90,7 @@ SynthDef(\vst, {|outbus, bypass|
 MIDIdef.cc(\cc64, {|val, num, chan, src|
 	var t = if(val>0, {0.01}, {0});
 	~midiGam.do({|v| v.transpose_(t) });
-}, 64, 0, ~midiSrc[\iac]);
+}, 64, 0);
 )
 
 ~board = MixingBoard(mixers: ~tracks ++ ~sends ++ [~master]);
