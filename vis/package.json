@@ -4,9 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "canvas-video-generator": "^1.0.0",
+    "concurrently": "^7.3.0",
     "http-server": "^0.12.3"
   },
   "scripts": {
-  	"start": "http-server public"
+    "start": "concurrently yarn:cvg yarn:server",
+    "cvg": "cvg --noclean",
+    "server": "http-server public"
   }
 }

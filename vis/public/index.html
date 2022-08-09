@@ -1,19 +1,24 @@
+<!DOCTYPE html>
 <html>
 <head>
 	<link href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=" rel="icon" type="image/x-icon" />
 </head>
 <body>
 	<div style="margin-bottom: 1rem">
-		<button onclick="online()">Play</button>
-		<button onclick="offline()">Render</button>
-		<input type="number" value="0" id="startframe">
-		<input type="number" value="0" id="endframe">
+		<button onclick="play()">Play</button>
+		<button id="record" onclick="record()">Record</button>
+		<button onclick="render()">Render</button>
 	</div>
-	<!-- <canvas id="canvas" width="1920" height="1080" style="width: 1280px; height: 720px;"></canvas> -->
-	<canvas id="canvas" width="3840" height="2160" style="width: 1280px; height: 720px;"></canvas>
-	<script src="https://unpkg.com/startaudiocontext@1.2.1/StartAudioContext.js"></script>
-	<script src="https://cdn.jsdelivr.net/gh/indutny/fft.js@v4.0.3/dist/fft.js"></script>
-	<script src="https://unpkg.com/file-saver@2.0.2/dist/FileSaver.min.js"></script>
+	<!-- <canvas id="canvas" width="1920" height="1080" style="width: 1280px; max-width: 100%"></canvas> -->
+	<canvas id="canvas" width="3840" height="2160" style="max-width: 100%; max-height: 100%"></canvas>
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "https://unpkg.com/three@0.143.0/build/three.module.js"
+			}
+		}
+	</script>
+	<script src="http://localhost:3172/cvg.js"></script>
 	<script type="module" src="index.js"></script>
 </body>
 </html>
