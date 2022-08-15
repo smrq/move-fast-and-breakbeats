@@ -2,18 +2,6 @@
 # yarn lockfile v1
 
 
-"@babel/runtime@^7.17.9":
-  version "7.18.9"
-  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.18.9.tgz#b4fcfce55db3d2e5e080d2490f608a3b9f407f4a"
-  integrity sha512-lkqXDcvlFT5rvEjiu6+QYO+1GXrEHRo2LOtS7E4GtX5ESIZOgepqsZBVIj6Pv+a6zqsya9VCgiK1KAK4BvJDAw==
-  dependencies:
-    regenerator-runtime "^0.13.4"
-
-"@types/webmidi@^2.0.6":
-  version "2.0.6"
-  resolved "https://registry.yarnpkg.com/@types/webmidi/-/webmidi-2.0.6.tgz#c9b1428bbc5d5f49cc6201eae0dc5e2b3fd23e0e"
-  integrity sha512-sfS0A5IryqmBrUpcGPipEPeFdpqmZzP6b6lZFxHKgz5n2Vhzh4yJ5P2TvoDUhDjqJyv0Y25ng0Qodgo2Vu08ug==
-
 JSONStream@^1.0.3:
   version "1.3.5"
   resolved "https://registry.yarnpkg.com/JSONStream/-/JSONStream-1.3.5.tgz#3208c1f08d3a4d99261ab64f92302bc15e111ca0"
@@ -599,13 +587,6 @@ diffie-hellman@^5.0.0:
     miller-rabin "^4.0.0"
     randombytes "^2.0.0"
 
-djipevents@^2.0.5:
-  version "2.0.6"
-  resolved "https://registry.yarnpkg.com/djipevents/-/djipevents-2.0.6.tgz#9da598d1f59659d3f13d94dcdbd76f92545a23de"
-  integrity sha512-2vS7/OVdqocBAIVPbxhk36swE4HnjUL1muoibrkoaCaEAEAF/ww8QbYm55PqlzMp51pvD01wHr/CkZmKZdrI/g==
-  dependencies:
-    "@babel/runtime" "^7.17.9"
-
 domain-browser@~1.1.0:
   version "1.1.7"
   resolved "https://registry.yarnpkg.com/domain-browser/-/domain-browser-1.1.7.tgz#867aa4b093faa05f1de08c06f4d7b21fdf8698bc"
@@ -984,11 +965,6 @@ isarray@^1.0.0, isarray@~1.0.0:
   resolved "https://registry.yarnpkg.com/isarray/-/isarray-1.0.0.tgz#bb935d48582cba168c06834957a54a3e07124f11"
   integrity sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==
 
-jazz-midi@^1.7.6:
-  version "1.7.6"
-  resolved "https://registry.yarnpkg.com/jazz-midi/-/jazz-midi-1.7.6.tgz#6bd3a9cb6dce0109271252c8c682ac04184c4018"
-  integrity sha512-vKCmBpotb1y+kEbRlu43COar2LzV46uOTTzyM/zTx5LR7WUTWle7FFC8rphqBVdryW66QtOyUA2N/DWZToBang==
-
 json-stable-stringify@~0.0.0:
   version "0.0.1"
   resolved "https://registry.yarnpkg.com/json-stable-stringify/-/json-stable-stringify-0.0.1.tgz#611c23e814db375527df851193db59dd2af27f45"
@@ -1005,14 +981,6 @@ jsonparse@^1.2.0:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/jsonparse/-/jsonparse-1.3.1.tgz#3f4dae4a91fac315f71062f8521cc239f1366280"
   integrity sha512-POQXvpdL69+CluYsillJ7SUhKvytYjW9vG/GKpnf+xP8UWgYEM/RaMzHHofbALDiKbbP1W8UEYmgGl39WkPZsg==
-
-jzz@^1.4.5:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/jzz/-/jzz-1.5.2.tgz#1fdc0a08e1c4cc10341d4f554a640bd0b994c1c2"
-  integrity sha512-58V274YyqaFavqI0FXcx2JCO4X8bSPuvwxlF8t2i+xlaWXSSenhExNzRkn/ubixdc0JNfsLV3+UX/baMw539ww==
-  dependencies:
-    "@types/webmidi" "^2.0.6"
-    jazz-midi "^1.7.6"
 
 labeled-stream-splicer@^2.0.0:
   version "2.0.2"
@@ -1416,11 +1384,6 @@ readable-stream@~2.0.0:
     string_decoder "~0.10.x"
     util-deprecate "~1.0.1"
 
-regenerator-runtime@^0.13.4:
-  version "0.13.9"
-  resolved "https://registry.yarnpkg.com/regenerator-runtime/-/regenerator-runtime-0.13.9.tgz#8925742a98ffd90814988d7566ad30ca3b263b52"
-  integrity sha512-p3VT+cOEgxFsRRA9X4lkI1E+k2/CtnKtU4gcxyaCUreilL/vqI6CdZ3wxVUx3UOUg+gnUOQQcRI7BmSI656MYA==
-
 require-directory@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/require-directory/-/require-directory-2.1.1.tgz#8c64ad5fd30dab1c976e2344ffe7f792a6a6df42"
@@ -1820,15 +1783,6 @@ vm-browserify@~0.0.1:
   integrity sha512-NyZNR3WDah+NPkjh/YmhuWSsT4a0mF0BJYgUmvrJ70zxjTXh5Y2Asobxlh0Nfs0PCFB5FVpRJft7NozAWFMwLQ==
   dependencies:
     indexof "0.0.1"
-
-webmidi@^3.0.21:
-  version "3.0.21"
-  resolved "https://registry.yarnpkg.com/webmidi/-/webmidi-3.0.21.tgz#a1faf28618779146c941eb559a4e1822408cb6a5"
-  integrity sha512-SStCLo099908jR0duYUTstVHNlKh9A/WvXIF5ED2ShGnE2MAy28UhrdzgjLsyDzOiBn8Od3ngT8g/MVa2TC5hg==
-  dependencies:
-    djipevents "^2.0.5"
-  optionalDependencies:
-    jzz "^1.4.5"
 
 wrap-ansi@^7.0.0:
   version "7.0.0"

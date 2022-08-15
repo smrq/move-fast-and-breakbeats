@@ -1,15 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+	<meta charset="utf-8">
+	<title>MfabVis</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=" rel="icon" type="image/x-icon" />
 </head>
 <body>
 	<div style="margin-bottom: 1rem">
-		<button onclick="play()">Play</button>
-		<button id="record" onclick="record()">Record</button>
-		<button onclick="render()">Render</button>
+		<div id="controls-init">
+			<button onclick="play()">Play</button>
+			<button onclick="record()">Record</button>
+			<button onclick="render()">Render</button>
+		</div>
+		<div id="controls-recording" style="display: none">
+			<div>Recording... (events captured: <span id="recording-count">0</span>)</div>
+			<button onclick="save_recording()">Save</button>
+		</div>
+		<div id="controls-rendering" style="display: none">
+			<div>Rendering... (frames rendered: <span id="rendering-count">0/0</span>)</div>
+		</div>
 	</div>
-	<!-- <canvas id="canvas" width="1920" height="1080" style="width: 1280px; max-width: 100%"></canvas> -->
 	<canvas id="canvas" width="3840" height="2160" style="max-width: 100%; max-height: 100%"></canvas>
 	<script type="importmap">
 		{
